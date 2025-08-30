@@ -22,50 +22,56 @@ An admin dashboard for managing auctions, users, and consigners built with Next.
 
 ## 📋 Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 - Supabase account and project
 
 ## ⚙️ Setup & Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/AiravatL/AiravatL-admin.git
    cd AiravatL-admin
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Environment Setup**
-   
+
    Create a `.env.local` file in the root directory:
+
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
 4. **Database Setup**
-   
+
    Run the SQL script in your Supabase SQL Editor:
+
    ```bash
    # Execute admin_rls_policies.sql in Supabase dashboard
    ```
 
 5. **Development Server**
+
    ```bash
    npm run dev
    ```
-   
+
    Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ## 🗄️ Database Schema
 
 The application expects the following Supabase tables:
+
 - `admin_users` - Admin user profiles
-- `profiles` - User profiles  
+- `profiles` - User profiles
 - `auctions` - Auction listings
 - `auction_bids` - Auction bids
 - `auction_notifications` - Notifications
@@ -92,7 +98,7 @@ This project is configured for GitHub Pages deployment:
 src/
 ├── app/                    # Next.js App Router pages
 │   ├── auctions/          # Auction management
-│   ├── consigners/        # Consigner dashboard  
+│   ├── consigners/        # Consigner dashboard
 │   ├── dashboard/         # Main dashboard
 │   ├── drivers/           # Driver management
 │   ├── login/             # Authentication

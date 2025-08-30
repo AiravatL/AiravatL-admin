@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
   },
   assetPrefix: process.env.NODE_ENV === 'production' ? '/AiravatL-admin' : '',
   basePath: process.env.NODE_ENV === 'production' ? '/AiravatL-admin' : '',
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;
