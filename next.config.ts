@@ -1,10 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
+  // Removed output: 'export' to fix dynamic routes
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
-  distDir: 'dist',
   images: {
     unoptimized: true
   },

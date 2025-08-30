@@ -86,11 +86,33 @@ The application expects the following Supabase tables:
 
 ## 🚢 Deployment
 
-This project is configured for GitHub Pages deployment:
+### GitHub Pages (Current Setup)
+
+This project is configured for GitHub Pages deployment with a static fallback:
 
 1. **Automatic Deployment**: Pushes to `main` branch trigger deployment
 2. **Manual Deployment**: Use GitHub Actions workflow dispatch
-3. **Live Site**: https://airavall.github.io/AiravatL-admin/
+3. **Live Demo**: https://airavall.github.io/AiravatL-admin/
+
+**Note**: The GitHub Pages deployment shows a configuration page since it requires Supabase environment variables to function as a full application.
+
+### Local Development Deployment
+
+For full functionality, run locally with proper environment variables:
+
+```bash
+# Clone and setup
+git clone https://github.com/AiravatL/AiravatL-admin.git
+cd AiravatL-admin
+npm install
+
+# Configure environment variables
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+
+# Run development server
+npm run dev
+```
 
 ## 📁 Project Structure
 
