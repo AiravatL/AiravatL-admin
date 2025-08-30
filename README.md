@@ -1,36 +1,134 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AiravatL Admin Portal
 
-## Getting Started
+An admin dashboard for managing auctions, users, and consigners built with Next.js and Supabase.
 
-First, run the development server:
+## 🚀 Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **User Management**: View and manage user profiles
+- **Auction Management**: Monitor and manage auction listings
+- **Consigner Dashboard**: Track consigner activities and performance
+- **Driver Management**: Oversee delivery driver information
+- **Secure Authentication**: Admin-only access with role-based permissions
+- **Responsive Design**: Modern UI with Tailwind CSS
+
+## 🛠️ Tech Stack
+
+- **Framework**: Next.js 15 with App Router
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Deployment**: GitHub Pages
+
+## 📋 Prerequisites
+
+- Node.js 18+ 
+- npm or yarn
+- Supabase account and project
+
+## ⚙️ Setup & Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/AiravatL/AiravatL-admin.git
+   cd AiravatL-admin
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Environment Setup**
+   
+   Create a `.env.local` file in the root directory:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. **Database Setup**
+   
+   Run the SQL script in your Supabase SQL Editor:
+   ```bash
+   # Execute admin_rls_policies.sql in Supabase dashboard
+   ```
+
+5. **Development Server**
+   ```bash
+   npm run dev
+   ```
+   
+   Open [http://localhost:3000](http://localhost:3000) to view the application.
+
+## 🗄️ Database Schema
+
+The application expects the following Supabase tables:
+- `admin_users` - Admin user profiles
+- `profiles` - User profiles  
+- `auctions` - Auction listings
+- `auction_bids` - Auction bids
+- `auction_notifications` - Notifications
+- `auction_audit_logs` - Audit trail
+
+## 🔐 Authentication & Security
+
+- Admin authentication via Supabase Auth
+- Row Level Security (RLS) policies
+- Admin-only access controls
+- Secure environment variable handling
+
+## 🚢 Deployment
+
+This project is configured for GitHub Pages deployment:
+
+1. **Automatic Deployment**: Pushes to `main` branch trigger deployment
+2. **Manual Deployment**: Use GitHub Actions workflow dispatch
+3. **Live Site**: https://airavall.github.io/AiravatL-admin/
+
+## 📁 Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router pages
+│   ├── auctions/          # Auction management
+│   ├── consigners/        # Consigner dashboard  
+│   ├── dashboard/         # Main dashboard
+│   ├── drivers/           # Driver management
+│   ├── login/             # Authentication
+│   └── users/             # User management
+├── components/            # Reusable components
+├── lib/                   # Utilities and configurations
+│   ├── auth.ts           # Authentication helpers
+│   └── supabase.ts       # Supabase client
+└── middleware.ts          # Route protection
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🔧 Development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Development
+npm run dev
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Build
+npm run build
 
-## Learn More
+# Lint
+npm run lint
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 🤝 Contributing
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📄 License
 
-## Deploy on Vercel
+This project is licensed under the MIT License.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📞 Support
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For support, please contact the AiravatL team or create an issue in this repository.
