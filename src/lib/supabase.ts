@@ -1,9 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Helper to check if we're in a browser environment and have valid Supabase config
+export const isSupabaseAvailable = () => {
+  return typeof window !== 'undefined' && 
+         process.env.NEXT_PUBLIC_SUPABASE_URL && 
+         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+}
 
 // Database types based on your Supabase schema
 export type Database = {
@@ -96,7 +103,7 @@ export type Database = {
           type: string
           message: string
           is_read: boolean | null
-          data: any
+          data: Record<string, unknown>
           created_at: string
         }
       }
@@ -106,7 +113,7 @@ export type Database = {
           auction_id: string | null
           user_id: string | null
           action: string
-          details: any
+          details: Record<string, unknown>
           created_at: string
         }
       }

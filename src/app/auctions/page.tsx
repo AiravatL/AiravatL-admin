@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseAvailable } from "@/lib/supabase";
 import {
   Gavel,
   TrendingUp,
@@ -91,7 +91,77 @@ export default function AuctionsPage() {
   const statusTypes = ["active", "completed", "cancelled"];
 
   useEffect(() => {
-    fetchAuctionData();
+    if (isSupabaseAvailable()) {
+      fetchAuctionData();
+    } else {
+      setLoading(false);
+      // Set demo data when Supabase is not available
+      setStats({
+        totalAuctions: 12,
+        activeAuctions: 4,
+        completedAuctions: 7,
+        cancelledAuctions: 1,
+        totalBidsPlaced: 89,
+        avgBidsPerAuction: 7.4,
+        vehicleTypeDistribution: { truck: 8, mini_truck: 3, van: 1 },
+        recentActivity: [],
+      });
+      setAuctions([
+        {
+          id: "sample-1",
+          title: "Mumbai to Delhi Transport",
+          description: "Urgent delivery of electronics equipment from Mumbai to Delhi",
+          vehicle_type: "truck",
+          status: "active",
+          start_time: "2024-01-15T10:00:00Z",
+          end_time: "2024-01-20T18:00:00Z",
+          consignment_date: "2024-01-25T08:00:00Z",
+          created_by: "john-doe",
+          winner_id: null,
+          winning_bid_id: null,
+          created_at: "2024-01-15T09:00:00Z",
+          updated_at: "2024-01-15T09:00:00Z",
+          bid_count: 5,
+          lowest_bid_amount: 42000,
+          highest_bid_amount: 58000,
+          consigner: {
+            id: "john-doe",
+            username: "johnlogistics",
+            first_name: "John",
+            last_name: "Logistics",
+            email: "john@example.com",
+          },
+          bids: [],
+        },
+        {
+          id: "sample-2",
+          title: "Bangalore to Chennai Route",
+          description: "Regular cargo delivery service between tech hubs",
+          vehicle_type: "mini_truck",
+          status: "completed",
+          start_time: "2024-01-10T10:00:00Z",
+          end_time: "2024-01-15T18:00:00Z",
+          consignment_date: "2024-01-18T08:00:00Z",
+          created_by: "tech-corp",
+          winner_id: "fast-transport",
+          winning_bid_id: "bid-1",
+          created_at: "2024-01-10T09:00:00Z",
+          updated_at: "2024-01-15T20:00:00Z",
+          bid_count: 8,
+          lowest_bid_amount: 23000,
+          highest_bid_amount: 29000,
+          consigner: {
+            id: "tech-corp",
+            username: "techcorp",
+            first_name: "Tech",
+            last_name: "Corporation",
+            email: "logistics@techcorp.com",
+          },
+          bids: [{ amount: "25000" }],
+        },
+      ]);
+      setFilteredAuctions([]);
+    }
   }, []);
 
   useEffect(() => {

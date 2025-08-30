@@ -51,12 +51,17 @@ jobs:
 
       - name: Prepare static files for GitHub Pages
         run: |
-          # Create dist directory and copy static files
+          # Create dist directory 
           mkdir -p dist
-          # Copy Next.js static files
-          cp -r .next/static dist/_next/static || true
-          # Create a simple index.html for GitHub Pages
-          cat > dist/index.html << 'EOF'
+          
+          # Copy Next.js static export files
+          if [ -d "out" ]; then
+            cp -r out/* dist/
+          fi
+          
+          # Create a fallback index.html if none exists
+          if [ ! -f "dist/index.html" ]; then
+            cat > dist/index.html << 'EOF'
           <!DOCTYPE html>
           <html lang="en">
           <head>

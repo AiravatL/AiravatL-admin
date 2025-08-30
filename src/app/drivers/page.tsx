@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseAvailable } from "@/lib/supabase";
 import {
   Truck,
   TrendingUp,
@@ -67,7 +67,12 @@ export default function DriversPage() {
   ];
 
   useEffect(() => {
-    fetchDriverData();
+    if (isSupabaseAvailable()) {
+      fetchDriverData();
+    } else {
+      setLoading(false);
+      setError('Supabase configuration not available');
+    }
   }, []);
 
   useEffect(() => {

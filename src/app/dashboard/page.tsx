@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, isSupabaseAvailable } from '@/lib/supabase'
 import { Users, Truck, Gavel, DollarSign, TrendingUp, AlertCircle } from 'lucide-react'
 
 interface DashboardStats {
@@ -19,7 +19,12 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchDashboardStats()
+    if (isSupabaseAvailable()) {
+      fetchDashboardStats()
+    } else {
+      setLoading(false)
+      setError('Supabase configuration not available')
+    }
   }, [])
 
   const fetchDashboardStats = async () => {
