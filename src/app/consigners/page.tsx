@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseAvailable } from "@/lib/supabase";
 import {
   Users,
   TrendingUp,
@@ -54,7 +54,12 @@ export default function ConsignersPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchConsignerData();
+    if (isSupabaseAvailable()) {
+      fetchConsignerData();
+    } else {
+      setLoading(false);
+      setError("Supabase configuration not available");
+    }
   }, []);
 
   useEffect(() => {

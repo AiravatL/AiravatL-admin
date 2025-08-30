@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseAvailable } from "@/lib/supabase";
 import {
   ArrowLeft,
   User,

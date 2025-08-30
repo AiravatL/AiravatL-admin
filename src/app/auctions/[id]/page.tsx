@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseAvailable } from "@/lib/supabase";
 import {
   ArrowLeft,
   Calendar,
@@ -92,7 +92,7 @@ interface AuditLog {
   auction_id: string;
   user_id: string | null;
   action: string;
-  details: any;
+  details: Record<string, unknown>;
   created_at: string;
   user?: {
     username: string;
@@ -115,8 +115,11 @@ export default function AuctionDetailPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("");
 
   useEffect(() => {
-    if (auctionId) {
+    if (auctionId && isSupabaseAvailable()) {
       fetchAuctionDetails();
+    } else if (auctionId && !isSupabaseAvailable()) {
+      setLoading(false);
+      setError("Supabase configuration not available");
     }
   }, [auctionId]);
 
