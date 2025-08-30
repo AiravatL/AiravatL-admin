@@ -4,7 +4,6 @@ import { ArrowLeft, Database, AlertCircle, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 export default function AuctionSamplePage() {
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -25,7 +24,8 @@ export default function AuctionSamplePage() {
           <div>
             <h3 className="font-semibold">Demo Environment</h3>
             <p className="text-sm mt-1">
-              This is a sample auction detail page. To view real auction data, you need to configure Supabase and deploy the application.
+              This is a sample auction detail page. To view real auction data,
+              you need to configure Supabase and deploy the application.
             </p>
           </div>
         </div>
@@ -39,7 +39,8 @@ export default function AuctionSamplePage() {
               Sample Transport Auction
             </h1>
             <p className="text-gray-600 mb-4">
-              Transport goods from Mumbai to Delhi via truck. This is a sample auction to demonstrate the interface.
+              Transport goods from Mumbai to Delhi via truck. This is a sample
+              auction to demonstrate the interface.
             </p>
             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
               <div className="flex items-center">
@@ -111,7 +112,9 @@ export default function AuctionSamplePage() {
           <div className="space-y-2">
             <div>
               <p className="text-sm text-gray-600">Pickup</p>
-              <p className="text-sm font-medium text-gray-900">Mumbai, Maharashtra</p>
+              <p className="text-sm font-medium text-gray-900">
+                Mumbai, Maharashtra
+              </p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Drop-off</p>
@@ -141,7 +144,9 @@ export default function AuctionSamplePage() {
             <ul className="text-sm mt-2 space-y-1 list-disc list-inside">
               <li>Set up a Supabase project</li>
               <li>Configure environment variables</li>
-              <li>Deploy to a hosting platform that supports server-side features</li>
+              <li>
+                Deploy to a hosting platform that supports server-side features
+              </li>
             </ul>
             <a
               href="https://github.com/AiravatL/AiravatL-admin#setup"

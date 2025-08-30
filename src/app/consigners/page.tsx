@@ -58,7 +58,7 @@ export default function ConsignersPage() {
       fetchConsignerData();
     } else {
       setLoading(false);
-      setError('Supabase configuration not available');
+      setError("Supabase configuration not available");
     }
   }, []);
 

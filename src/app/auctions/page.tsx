@@ -110,7 +110,8 @@ export default function AuctionsPage() {
         {
           id: "sample-1",
           title: "Mumbai to Delhi Transport",
-          description: "Urgent delivery of electronics equipment from Mumbai to Delhi",
+          description:
+            "Urgent delivery of electronics equipment from Mumbai to Delhi",
           vehicle_type: "truck",
           status: "active",
           start_time: "2024-01-15T10:00:00Z",
@@ -541,23 +542,46 @@ export default function AuctionsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">Auction</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">Consigner</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">Vehicle Type</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">Status</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">Bids</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">Winner</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">Timing</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">Actions</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                  Auction
+                </th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                  Consigner
+                </th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                  Vehicle Type
+                </th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                  Status
+                </th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                  Bids
+                </th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                  Winner
+                </th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                  Timing
+                </th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredAuctions.map((auction) => (
-                <tr key={auction.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <tr
+                  key={auction.id}
+                  className="border-b border-gray-100 hover:bg-gray-50"
+                >
                   <td className="py-4 px-4">
                     <div className="max-w-xs">
-                      <p className="font-medium text-gray-900 truncate">{auction.title}</p>
-                      <p className="text-sm text-gray-500 truncate">{auction.description}</p>
+                      <p className="font-medium text-gray-900 truncate">
+                        {auction.title}
+                      </p>
+                      <p className="text-sm text-gray-500 truncate">
+                        {auction.description}
+                      </p>
                     </div>
                   </td>
                   <td className="py-4 px-4">
@@ -565,11 +589,16 @@ export default function AuctionsPage() {
                       <User className="w-4 h-4 text-gray-400 mr-2" />
                       <div>
                         <p className="font-medium text-gray-900">
-                          {auction.consigner?.first_name || auction.consigner?.last_name
-                            ? `${auction.consigner.first_name || ""} ${auction.consigner.last_name || ""}`.trim()
+                          {auction.consigner?.first_name ||
+                          auction.consigner?.last_name
+                            ? `${auction.consigner.first_name || ""} ${
+                                auction.consigner.last_name || ""
+                              }`.trim()
                             : auction.consigner?.username}
                         </p>
-                        <p className="text-sm text-gray-500">@{auction.consigner?.username}</p>
+                        <p className="text-sm text-gray-500">
+                          @{auction.consigner?.username}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -581,19 +610,26 @@ export default function AuctionsPage() {
                   <td className="py-4 px-4">
                     <div className="flex items-center">
                       {getStatusIcon(auction.status)}
-                      <span className={`ml-2 ${getStatusBadge(auction.status)}`}>
-                        {auction.status?.charAt(0).toUpperCase() + auction.status?.slice(1)}
+                      <span
+                        className={`ml-2 ${getStatusBadge(auction.status)}`}
+                      >
+                        {auction.status?.charAt(0).toUpperCase() +
+                          auction.status?.slice(1)}
                       </span>
                     </div>
                   </td>
                   <td className="py-4 px-4">
                     <div className="text-center">
-                      <p className="font-semibold text-gray-900">{auction.bid_count || 0}</p>
-                      {auction.lowest_bid_amount && auction.highest_bid_amount && (
-                        <p className="text-xs text-gray-500">
-                          ₹{auction.lowest_bid_amount?.toLocaleString()} - ₹{auction.highest_bid_amount?.toLocaleString()}
-                        </p>
-                      )}
+                      <p className="font-semibold text-gray-900">
+                        {auction.bid_count || 0}
+                      </p>
+                      {auction.lowest_bid_amount &&
+                        auction.highest_bid_amount && (
+                          <p className="text-xs text-gray-500">
+                            ₹{auction.lowest_bid_amount?.toLocaleString()} - ₹
+                            {auction.highest_bid_amount?.toLocaleString()}
+                          </p>
+                        )}
                     </div>
                   </td>
                   <td className="py-4 px-4">
@@ -601,10 +637,14 @@ export default function AuctionsPage() {
                       <div>
                         <p className="font-medium text-green-700">
                           {auction.winner.first_name || auction.winner.last_name
-                            ? `${auction.winner.first_name || ""} ${auction.winner.last_name || ""}`.trim()
+                            ? `${auction.winner.first_name || ""} ${
+                                auction.winner.last_name || ""
+                              }`.trim()
                             : auction.winner.username}
                         </p>
-                        <p className="text-sm text-gray-500">{auction.winner.vehicle_number}</p>
+                        <p className="text-sm text-gray-500">
+                          {auction.winner.vehicle_number}
+                        </p>
                       </div>
                     ) : (
                       <span className="text-gray-400">-</span>
@@ -614,11 +654,19 @@ export default function AuctionsPage() {
                     <div className="text-sm">
                       <div className="flex items-center text-gray-600 mb-1">
                         <Calendar className="w-4 h-4 mr-1" />
-                        <span>Ends: {new Date(auction.end_time).toLocaleDateString()}</span>
+                        <span>
+                          Ends:{" "}
+                          {new Date(auction.end_time).toLocaleDateString()}
+                        </span>
                       </div>
                       <div className="flex items-center text-gray-600">
                         <Truck className="w-4 h-4 mr-1" />
-                        <span>Job: {new Date(auction.consignment_date).toLocaleDateString()}</span>
+                        <span>
+                          Job:{" "}
+                          {new Date(
+                            auction.consignment_date
+                          ).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
                   </td>
@@ -640,20 +688,28 @@ export default function AuctionsPage() {
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-4">
           {filteredAuctions.map((auction) => (
-            <div key={auction.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+            <div
+              key={auction.id}
+              className="border border-gray-200 rounded-lg p-4 bg-white"
+            >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-gray-900 truncate">{auction.title}</h3>
-                  <p className="text-sm text-gray-500 truncate mt-1">{auction.description}</p>
+                  <h3 className="font-medium text-gray-900 truncate">
+                    {auction.title}
+                  </h3>
+                  <p className="text-sm text-gray-500 truncate mt-1">
+                    {auction.description}
+                  </p>
                 </div>
                 <div className="flex items-center ml-4">
                   {getStatusIcon(auction.status)}
                   <span className={`ml-1 ${getStatusBadge(auction.status)}`}>
-                    {auction.status?.charAt(0).toUpperCase() + auction.status?.slice(1)}
+                    {auction.status?.charAt(0).toUpperCase() +
+                      auction.status?.slice(1)}
                   </span>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                 <div>
                   <p className="text-gray-600 mb-1">Consigner</p>
@@ -661,38 +717,46 @@ export default function AuctionsPage() {
                     <User className="w-4 h-4 text-gray-400 mr-2" />
                     <div>
                       <p className="font-medium text-gray-900 text-sm">
-                        {auction.consigner?.first_name || auction.consigner?.last_name
-                          ? `${auction.consigner.first_name || ""} ${auction.consigner.last_name || ""}`.trim()
+                        {auction.consigner?.first_name ||
+                        auction.consigner?.last_name
+                          ? `${auction.consigner.first_name || ""} ${
+                              auction.consigner.last_name || ""
+                            }`.trim()
                           : auction.consigner?.username}
                       </p>
                     </div>
                   </div>
                 </div>
-                
+
                 <div>
                   <p className="text-gray-600 mb-1">Vehicle Type</p>
                   <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">
                     {formatVehicleType(auction.vehicle_type)}
                   </span>
                 </div>
-                
+
                 <div>
                   <p className="text-gray-600 mb-1">Bids</p>
-                  <p className="font-semibold text-gray-900">{auction.bid_count || 0}</p>
+                  <p className="font-semibold text-gray-900">
+                    {auction.bid_count || 0}
+                  </p>
                   {auction.lowest_bid_amount && auction.highest_bid_amount && (
                     <p className="text-xs text-gray-500">
-                      ₹{auction.lowest_bid_amount?.toLocaleString()} - ₹{auction.highest_bid_amount?.toLocaleString()}
+                      ₹{auction.lowest_bid_amount?.toLocaleString()} - ₹
+                      {auction.highest_bid_amount?.toLocaleString()}
                     </p>
                   )}
                 </div>
-                
+
                 <div>
                   <p className="text-gray-600 mb-1">Winner</p>
                   {auction.winner ? (
                     <div>
                       <p className="font-medium text-green-700 text-sm">
                         {auction.winner.first_name || auction.winner.last_name
-                          ? `${auction.winner.first_name || ""} ${auction.winner.last_name || ""}`.trim()
+                          ? `${auction.winner.first_name || ""} ${
+                              auction.winner.last_name || ""
+                            }`.trim()
                           : auction.winner.username}
                       </p>
                     </div>
@@ -701,7 +765,7 @@ export default function AuctionsPage() {
                   )}
                 </div>
               </div>
-              
+
               <div className="border-t border-gray-200 pt-3 flex items-center justify-between">
                 <div className="text-xs text-gray-600">
                   <div className="flex items-center mb-1">
@@ -710,7 +774,8 @@ export default function AuctionsPage() {
                   </div>
                   <div className="flex items-center">
                     <Truck className="w-3 h-3 mr-1" />
-                    Job: {new Date(auction.consignment_date).toLocaleDateString()}
+                    Job:{" "}
+                    {new Date(auction.consignment_date).toLocaleDateString()}
                   </div>
                 </div>
                 <Link
@@ -728,7 +793,9 @@ export default function AuctionsPage() {
         {filteredAuctions.length === 0 && (
           <div className="text-center py-12">
             <Gavel className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No auctions found matching your criteria.</p>
+            <p className="text-gray-500">
+              No auctions found matching your criteria.
+            </p>
           </div>
         )}
       </div>

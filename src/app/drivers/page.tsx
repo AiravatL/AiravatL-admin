@@ -71,7 +71,7 @@ export default function DriversPage() {
       fetchDriverData();
     } else {
       setLoading(false);
-      setError('Supabase configuration not available');
+      setError("Supabase configuration not available");
     }
   }, []);
 

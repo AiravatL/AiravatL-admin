@@ -119,7 +119,7 @@ export default function AuctionDetailPage() {
       fetchAuctionDetails();
     } else if (auctionId && !isSupabaseAvailable()) {
       setLoading(false);
-      setError('Supabase configuration not available');
+      setError("Supabase configuration not available");
     }
   }, [auctionId]);
 
