@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import {
   ArrowLeft,
   Calendar,
@@ -22,116 +22,117 @@ import {
   Settings,
   Save,
   RotateCcw,
-  X
-} from 'lucide-react'
-import Link from 'next/link'
+  X,
+} from "lucide-react";
+import Link from "next/link";
 
 interface AuctionDetail {
-  id: string
-  title: string
-  description: string
-  vehicle_type: string
-  start_time: string
-  end_time: string
-  consignment_date: string
-  pickup_location: string | null
-  dropoff_location: string | null
-  estimated_distance: number | null
-  weight: number | null
-  cargo_type: string | null
-  status: 'active' | 'completed' | 'cancelled'
-  created_by: string
-  winner_id: string | null
-  winning_bid_id: string | null
-  created_at: string
-  updated_at: string
+  id: string;
+  title: string;
+  description: string;
+  vehicle_type: string;
+  start_time: string;
+  end_time: string;
+  consignment_date: string;
+  pickup_location: string | null;
+  dropoff_location: string | null;
+  estimated_distance: number | null;
+  weight: number | null;
+  cargo_type: string | null;
+  status: "active" | "completed" | "cancelled";
+  created_by: string;
+  winner_id: string | null;
+  winning_bid_id: string | null;
+  created_at: string;
+  updated_at: string;
   // Related data
   consigner?: {
-    id: string
-    username: string
-    first_name: string | null
-    last_name: string | null
-    email: string | null
-    phone_number: string | null
-  }
+    id: string;
+    username: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+    phone_number: string | null;
+  };
   winner?: {
-    id: string
-    username: string
-    first_name: string | null
-    last_name: string | null
-    vehicle_number: string | null
-    vehicle_type: string | null
-    phone_number: string | null
-  }
+    id: string;
+    username: string;
+    first_name: string | null;
+    last_name: string | null;
+    vehicle_number: string | null;
+    vehicle_type: string | null;
+    phone_number: string | null;
+  };
   winning_bid?: {
-    id: string
-    amount: string
-    created_at: string
-  }
+    id: string;
+    amount: string;
+    created_at: string;
+  };
 }
 
 interface Bid {
-  id: string
-  auction_id: string
-  user_id: string
-  amount: string
-  created_at: string
+  id: string;
+  auction_id: string;
+  user_id: string;
+  amount: string;
+  created_at: string;
   user: {
-    id: string
-    username: string
-    first_name: string | null
-    last_name: string | null
-    vehicle_number: string | null
-    vehicle_type: string | null
-    phone_number: string | null
-  }
+    id: string;
+    username: string;
+    first_name: string | null;
+    last_name: string | null;
+    vehicle_number: string | null;
+    vehicle_type: string | null;
+    phone_number: string | null;
+  };
 }
 
 interface AuditLog {
-  id: string
-  auction_id: string
-  user_id: string | null
-  action: string
-  details: any
-  created_at: string
+  id: string;
+  auction_id: string;
+  user_id: string | null;
+  action: string;
+  details: any;
+  created_at: string;
   user?: {
-    username: string
-    first_name: string | null
-    last_name: string | null
-  }
+    username: string;
+    first_name: string | null;
+    last_name: string | null;
+  };
 }
 
 export default function AuctionDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const auctionId = params.id as string
+  const params = useParams();
+  const router = useRouter();
+  const auctionId = params.id as string;
 
-  const [auction, setAuction] = useState<AuctionDetail | null>(null)
-  const [bids, setBids] = useState<Bid[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showStatusManager, setShowStatusManager] = useState(false)
-  const [updating, setUpdating] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState<string>('')
+  const [auction, setAuction] = useState<AuctionDetail | null>(null);
+  const [bids, setBids] = useState<Bid[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showStatusManager, setShowStatusManager] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
 
   useEffect(() => {
     if (auctionId) {
-      fetchAuctionDetails()
+      fetchAuctionDetails();
     }
-  }, [auctionId])
+  }, [auctionId]);
 
   useEffect(() => {
     if (auction) {
-      setSelectedStatus(auction.status)
+      setSelectedStatus(auction.status);
     }
-  }, [auction])
+  }, [auction]);
 
   const fetchAuctionDetails = async () => {
     try {
       // Fetch auction details with related data
       const { data: auctionData, error: auctionError } = await supabase
-        .from('auctions')
-        .select(`
+        .from("auctions")
+        .select(
+          `
           *,
           profiles!auctions_created_by_fkey (
             id, username, first_name, last_name, email, phone_number
@@ -142,154 +143,158 @@ export default function AuctionDetailPage() {
           auction_bids!auctions_winning_bid_id_fkey (
             id, amount, created_at
           )
-        `)
-        .eq('id', auctionId)
-        .single()
+        `
+        )
+        .eq("id", auctionId)
+        .single();
 
-      if (auctionError) throw auctionError
+      if (auctionError) throw auctionError;
 
       // Fetch all bids for this auction
       const { data: bidsData, error: bidsError } = await supabase
-        .from('auction_bids')
-        .select(`
+        .from("auction_bids")
+        .select(
+          `
           *,
           profiles (
             id, username, first_name, last_name, vehicle_number, vehicle_type, phone_number
           )
-        `)
-        .eq('auction_id', auctionId)
-        .order('amount', { ascending: true })
+        `
+        )
+        .eq("auction_id", auctionId)
+        .order("amount", { ascending: true });
 
-      if (bidsError) throw bidsError
-
-
+      if (bidsError) throw bidsError;
 
       setAuction({
         ...auctionData,
         consigner: auctionData.profiles,
         winner: auctionData.winner,
-        winning_bid: auctionData.auction_bids
-      })
-      setBids(bidsData.map(bid => ({ ...bid, user: bid.profiles })))
-
+        winning_bid: auctionData.auction_bids,
+      });
+      setBids(bidsData.map((bid) => ({ ...bid, user: bid.profiles })));
     } catch (err: any) {
-      console.error('Error fetching auction details:', err)
-      setError(err.message)
+      console.error("Error fetching auction details:", err);
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const formatVehicleType = (type: string) => {
-    return type?.split('_').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ')
-  }
+    return type
+      ?.split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'active':
-        return <Clock className="w-5 h-5 text-green-600" />
-      case 'completed':
-        return <CheckCircle className="w-5 h-5 text-blue-600" />
-      case 'cancelled':
-        return <XCircle className="w-5 h-5 text-red-600" />
+      case "active":
+        return <Clock className="w-5 h-5 text-green-600" />;
+      case "completed":
+        return <CheckCircle className="w-5 h-5 text-blue-600" />;
+      case "cancelled":
+        return <XCircle className="w-5 h-5 text-red-600" />;
       default:
-        return <AlertCircle className="w-5 h-5 text-gray-600" />
+        return <AlertCircle className="w-5 h-5 text-gray-600" />;
     }
-  }
+  };
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      active: 'bg-green-100 text-green-800 border-green-200',
-      completed: 'bg-blue-100 text-blue-800 border-blue-200',
-      cancelled: 'bg-red-100 text-red-800 border-red-200'
-    }
-    return `px-3 py-1 rounded-full text-sm font-medium border ${styles[status as keyof typeof styles] || 'bg-gray-100 text-gray-800 border-gray-200'}`
-  }
+      active: "bg-green-100 text-green-800 border-green-200",
+      completed: "bg-blue-100 text-blue-800 border-blue-200",
+      cancelled: "bg-red-100 text-red-800 border-red-200",
+    };
+    return `px-3 py-1 rounded-full text-sm font-medium border ${
+      styles[status as keyof typeof styles] ||
+      "bg-gray-100 text-gray-800 border-gray-200"
+    }`;
+  };
 
   const getUserDisplayName = (user: any) => {
     if (user?.first_name || user?.last_name) {
-      return `${user.first_name || ''} ${user.last_name || ''}`.trim()
+      return `${user.first_name || ""} ${user.last_name || ""}`.trim();
     }
-    return user?.username || 'Unknown User'
-  }
+    return user?.username || "Unknown User";
+  };
 
   const getBidTrend = (currentBid: Bid, index: number) => {
-    if (index === bids.length - 1) return null
-    const nextBid = bids[index + 1]
-    const currentAmount = parseFloat(currentBid.amount)
-    const nextAmount = parseFloat(nextBid.amount)
-    
+    if (index === bids.length - 1) return null;
+    const nextBid = bids[index + 1];
+    const currentAmount = parseFloat(currentBid.amount);
+    const nextAmount = parseFloat(nextBid.amount);
+
     if (currentAmount < nextAmount) {
-      return <TrendingDown className="w-4 h-4 text-green-600" title="Lower bid (better)" />
+      return <TrendingDown className="w-4 h-4 text-green-600" />;
     } else if (currentAmount > nextAmount) {
-      return <TrendingUp className="w-4 h-4 text-red-600" title="Higher bid" />
+      return <TrendingUp className="w-4 h-4 text-red-600" />;
     }
-    return null
-  }
+    return null;
+  };
 
   const updateAuctionStatus = async () => {
-    if (!auction || selectedStatus === auction.status) return
+    if (!auction || selectedStatus === auction.status) return;
 
-    setUpdating(true)
+    setUpdating(true);
     try {
       const { error } = await supabase
-        .from('auctions')
-        .update({ 
+        .from("auctions")
+        .update({
           status: selectedStatus,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', auctionId)
+        .eq("id", auctionId);
 
-      if (error) throw error
+      if (error) throw error;
 
       // Create audit log
-      await supabase
-        .from('auction_audit_logs')
-        .insert({
-          auction_id: auctionId,
-          user_id: null, // Admin user - could be improved to track admin user
-          action: `Status changed from ${auction.status} to ${selectedStatus}`,
-          details: {
-            previous_status: auction.status,
-            new_status: selectedStatus,
-            changed_by: 'admin'
-          }
-        })
+      await supabase.from("auction_audit_logs").insert({
+        auction_id: auctionId,
+        user_id: null, // Admin user - could be improved to track admin user
+        action: `Status changed from ${auction.status} to ${selectedStatus}`,
+        details: {
+          previous_status: auction.status,
+          new_status: selectedStatus,
+          changed_by: "admin",
+        },
+      });
 
       // Refresh auction data
-      await fetchAuctionDetails()
-      setShowStatusManager(false)
-      
+      await fetchAuctionDetails();
+      setShowStatusManager(false);
     } catch (err: any) {
-      console.error('Error updating auction status:', err)
-      setError('Failed to update auction status: ' + err.message)
+      console.error("Error updating auction status:", err);
+      setError("Failed to update auction status: " + err.message);
     } finally {
-      setUpdating(false)
+      setUpdating(false);
     }
-  }
+  };
 
   const resetStatusChanges = () => {
     if (auction) {
-      setSelectedStatus(auction.status)
+      setSelectedStatus(auction.status);
     }
-    setShowStatusManager(false)
-  }
+    setShowStatusManager(false);
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
-    )
+    );
   }
 
   if (error) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Link href="/auctions" className="flex items-center text-indigo-600 hover:text-indigo-700">
+          <Link
+            href="/auctions"
+            className="flex items-center text-indigo-600 hover:text-indigo-700"
+          >
             <ArrowLeft className="w-5 h-5 mr-2" />
             Back to Auctions
           </Link>
@@ -301,14 +306,17 @@ export default function AuctionDetailPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!auction) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Link href="/auctions" className="flex items-center text-indigo-600 hover:text-indigo-700">
+          <Link
+            href="/auctions"
+            className="flex items-center text-indigo-600 hover:text-indigo-700"
+          >
             <ArrowLeft className="w-5 h-5 mr-2" />
             Back to Auctions
           </Link>
@@ -320,14 +328,17 @@ export default function AuctionDetailPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Link href="/auctions" className="flex items-center text-indigo-600 hover:text-indigo-700">
+        <Link
+          href="/auctions"
+          className="flex items-center text-indigo-600 hover:text-indigo-700"
+        >
           <ArrowLeft className="w-5 h-5 mr-2" />
           Back to Auctions
         </Link>
@@ -362,7 +373,7 @@ export default function AuctionDetailPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -371,7 +382,8 @@ export default function AuctionDetailPage() {
                 <div className="flex items-center">
                   {getStatusIcon(auction.status)}
                   <span className={`ml-2 ${getStatusBadge(auction.status)}`}>
-                    {auction.status?.charAt(0).toUpperCase() + auction.status?.slice(1)}
+                    {auction.status?.charAt(0).toUpperCase() +
+                      auction.status?.slice(1)}
                   </span>
                 </div>
               </div>
@@ -396,7 +408,9 @@ export default function AuctionDetailPage() {
                   <div className="flex items-center">
                     <AlertCircle className="w-4 h-4 text-yellow-600 mr-2" />
                     <span className="text-sm text-yellow-700">
-                      This will change the auction status from <strong>{auction.status}</strong> to <strong>{selectedStatus}</strong>
+                      This will change the auction status from{" "}
+                      <strong>{auction.status}</strong> to{" "}
+                      <strong>{selectedStatus}</strong>
                     </span>
                   </div>
                 </div>
@@ -417,7 +431,7 @@ export default function AuctionDetailPage() {
                 className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
               >
                 <Save className="w-4 h-4 mr-1" />
-                {updating ? 'Updating...' : 'Update Status'}
+                {updating ? "Updating..." : "Update Status"}
               </button>
             </div>
           </div>
@@ -428,12 +442,16 @@ export default function AuctionDetailPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{auction.title}</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {auction.title}
+            </h1>
             <p className="text-gray-600 mb-4">{auction.description}</p>
             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
               <div className="flex items-center">
                 <Calendar className="w-4 h-4 mr-1" />
-                <span>Created: {new Date(auction.created_at).toLocaleString()}</span>
+                <span>
+                  Created: {new Date(auction.created_at).toLocaleString()}
+                </span>
               </div>
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-1" />
@@ -441,7 +459,10 @@ export default function AuctionDetailPage() {
               </div>
               <div className="flex items-center">
                 <Truck className="w-4 h-4 mr-1" />
-                <span>Job Date: {new Date(auction.consignment_date).toLocaleDateString()}</span>
+                <span>
+                  Job Date:{" "}
+                  {new Date(auction.consignment_date).toLocaleDateString()}
+                </span>
               </div>
             </div>
           </div>
@@ -462,13 +483,19 @@ export default function AuctionDetailPage() {
             <User className="w-5 h-5 text-indigo-600" />
           </div>
           <div className="space-y-2">
-            <p className="font-medium text-gray-900">{getUserDisplayName(auction.consigner)}</p>
-            <p className="text-sm text-gray-500">@{auction.consigner?.username}</p>
+            <p className="font-medium text-gray-900">
+              {getUserDisplayName(auction.consigner)}
+            </p>
+            <p className="text-sm text-gray-500">
+              @{auction.consigner?.username}
+            </p>
             {auction.consigner?.email && (
               <p className="text-sm text-gray-600">{auction.consigner.email}</p>
             )}
             {auction.consigner?.phone_number && (
-              <p className="text-sm text-gray-600">{auction.consigner.phone_number}</p>
+              <p className="text-sm text-gray-600">
+                {auction.consigner.phone_number}
+              </p>
             )}
           </div>
         </div>
@@ -481,16 +508,26 @@ export default function AuctionDetailPage() {
           </div>
           {auction.winner ? (
             <div className="space-y-2">
-              <p className="font-medium text-green-700">{getUserDisplayName(auction.winner)}</p>
-              <p className="text-sm text-gray-500">@{auction.winner.username}</p>
+              <p className="font-medium text-green-700">
+                {getUserDisplayName(auction.winner)}
+              </p>
+              <p className="text-sm text-gray-500">
+                @{auction.winner.username}
+              </p>
               {auction.winner.vehicle_number && (
-                <p className="text-sm text-gray-600">{auction.winner.vehicle_number}</p>
+                <p className="text-sm text-gray-600">
+                  {auction.winner.vehicle_number}
+                </p>
               )}
               {auction.winner.phone_number && (
-                <p className="text-sm text-gray-600">{auction.winner.phone_number}</p>
+                <p className="text-sm text-gray-600">
+                  {auction.winner.phone_number}
+                </p>
               )}
               {auction.winning_bid && (
-                <p className="text-lg font-bold text-green-700">₹{parseFloat(auction.winning_bid.amount).toLocaleString()}</p>
+                <p className="text-lg font-bold text-green-700">
+                  ₹{parseFloat(auction.winning_bid.amount).toLocaleString()}
+                </p>
               )}
             </div>
           ) : (
@@ -514,13 +551,19 @@ export default function AuctionDetailPage() {
                 <div>
                   <p className="text-sm text-gray-600">Lowest Bid</p>
                   <p className="text-lg font-semibold text-green-700">
-                    ₹{Math.min(...bids.map(b => parseFloat(b.amount))).toLocaleString()}
+                    ₹
+                    {Math.min(
+                      ...bids.map((b) => parseFloat(b.amount))
+                    ).toLocaleString()}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Highest Bid</p>
                   <p className="text-lg font-semibold text-red-700">
-                    ₹{Math.max(...bids.map(b => parseFloat(b.amount))).toLocaleString()}
+                    ₹
+                    {Math.max(
+                      ...bids.map((b) => parseFloat(b.amount))
+                    ).toLocaleString()}
                   </p>
                 </div>
               </>
@@ -556,19 +599,25 @@ export default function AuctionDetailPage() {
             {auction.estimated_distance && (
               <div>
                 <p className="text-sm text-gray-600">Distance</p>
-                <p className="text-sm font-medium text-gray-900">{auction.estimated_distance} km</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {auction.estimated_distance} km
+                </p>
               </div>
             )}
             {auction.weight && (
               <div>
                 <p className="text-sm text-gray-600">Weight</p>
-                <p className="text-sm font-medium text-gray-900">{auction.weight} kg</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {auction.weight} kg
+                </p>
               </div>
             )}
             {auction.cargo_type && (
               <div>
                 <p className="text-sm text-gray-600">Cargo Type</p>
-                <p className="text-sm font-medium text-gray-900">{auction.cargo_type}</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {auction.cargo_type}
+                </p>
               </div>
             )}
           </div>
@@ -583,7 +632,7 @@ export default function AuctionDetailPage() {
             Bid History ({bids.length} bids)
           </h2>
         </div>
-        
+
         {bids.length > 0 ? (
           <>
             {/* Desktop Table View */}
@@ -591,41 +640,68 @@ export default function AuctionDetailPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Bidder</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Amount</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Vehicle</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Time</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Trend</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Status</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                      Bidder
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                      Amount
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                      Vehicle
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                      Time
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                      Trend
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {bids.map((bid, index) => (
-                    <tr key={bid.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <tr
+                      key={bid.id}
+                      className="border-b border-gray-100 hover:bg-gray-50"
+                    >
                       <td className="py-4 px-4">
                         <div>
-                          <p className="font-medium text-gray-900">{getUserDisplayName(bid.user)}</p>
-                          <p className="text-sm text-gray-500">@{bid.user?.username}</p>
+                          <p className="font-medium text-gray-900">
+                            {getUserDisplayName(bid.user)}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            @{bid.user?.username}
+                          </p>
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <p className="text-lg font-semibold text-gray-900">₹{parseFloat(bid.amount).toLocaleString()}</p>
+                        <p className="text-lg font-semibold text-gray-900">
+                          ₹{parseFloat(bid.amount).toLocaleString()}
+                        </p>
                       </td>
                       <td className="py-4 px-4">
                         <div className="text-sm">
-                          <p className="text-gray-900">{formatVehicleType(bid.user?.vehicle_type || '')}</p>
-                          <p className="text-gray-500">{bid.user?.vehicle_number}</p>
+                          <p className="text-gray-900">
+                            {formatVehicleType(bid.user?.vehicle_type || "")}
+                          </p>
+                          <p className="text-gray-500">
+                            {bid.user?.vehicle_number}
+                          </p>
                         </div>
                       </td>
                       <td className="py-4 px-4">
                         <div className="text-sm">
-                          <p className="text-gray-900">{new Date(bid.created_at).toLocaleDateString()}</p>
-                          <p className="text-gray-500">{new Date(bid.created_at).toLocaleTimeString()}</p>
+                          <p className="text-gray-900">
+                            {new Date(bid.created_at).toLocaleDateString()}
+                          </p>
+                          <p className="text-gray-500">
+                            {new Date(bid.created_at).toLocaleTimeString()}
+                          </p>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
-                        {getBidTrend(bid, index)}
-                      </td>
+                      <td className="py-4 px-4">{getBidTrend(bid, index)}</td>
                       <td className="py-4 px-4">
                         {auction.winner_id === bid.user_id ? (
                           <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium flex items-center w-fit">
@@ -645,11 +721,18 @@ export default function AuctionDetailPage() {
             {/* Mobile Card View */}
             <div className="lg:hidden space-y-4">
               {bids.map((bid, index) => (
-                <div key={bid.id} className="border border-gray-200 rounded-lg p-4">
+                <div
+                  key={bid.id}
+                  className="border border-gray-200 rounded-lg p-4"
+                >
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <p className="font-medium text-gray-900">{getUserDisplayName(bid.user)}</p>
-                      <p className="text-sm text-gray-500">@{bid.user?.username}</p>
+                      <p className="font-medium text-gray-900">
+                        {getUserDisplayName(bid.user)}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        @{bid.user?.username}
+                      </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       {getBidTrend(bid, index)}
@@ -661,22 +744,31 @@ export default function AuctionDetailPage() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-600">Amount</p>
-                      <p className="text-lg font-semibold text-gray-900">₹{parseFloat(bid.amount).toLocaleString()}</p>
+                      <p className="text-lg font-semibold text-gray-900">
+                        ₹{parseFloat(bid.amount).toLocaleString()}
+                      </p>
                     </div>
                     <div>
                       <p className="text-gray-600">Vehicle</p>
-                      <p className="text-gray-900">{formatVehicleType(bid.user?.vehicle_type || '')}</p>
-                      <p className="text-gray-500 text-xs">{bid.user?.vehicle_number}</p>
+                      <p className="text-gray-900">
+                        {formatVehicleType(bid.user?.vehicle_type || "")}
+                      </p>
+                      <p className="text-gray-500 text-xs">
+                        {bid.user?.vehicle_number}
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div className="border-t border-gray-200 pt-3 mt-3">
                     <div className="text-xs text-gray-600">
-                      <p>{new Date(bid.created_at).toLocaleDateString()} at {new Date(bid.created_at).toLocaleTimeString()}</p>
+                      <p>
+                        {new Date(bid.created_at).toLocaleDateString()} at{" "}
+                        {new Date(bid.created_at).toLocaleTimeString()}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -690,7 +782,6 @@ export default function AuctionDetailPage() {
           </div>
         )}
       </div>
-
     </div>
-  )
+  );
 }

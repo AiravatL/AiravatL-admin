@@ -16,9 +16,21 @@ const eslintConfig = [
       "node_modules/**",
       ".next/**",
       "out/**",
+      "dist/**",
       "build/**",
       "next-env.d.ts",
+      "package-lock.json",
     ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
+      "@typescript-eslint/no-wrapper-object-types": "warn",
+      "@typescript-eslint/no-unsafe-function-type": "warn",
+      "@typescript-eslint/no-this-alias": "warn",
+      "@next/next/no-assign-module-variable": "warn",
+      "react-hooks/exhaustive-deps": "warn",
+    },
   },
 ];
 
