@@ -11,6 +11,7 @@
 !.yarn/versions
 .vscode
 .claude
+.mcp.json
 # testing
 /coverage
 
