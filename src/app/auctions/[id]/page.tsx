@@ -39,7 +39,7 @@ interface AuctionDetail {
   estimated_distance: number | null;
   weight: number | null;
   cargo_type: string | null;
-  status: "active" | "completed" | "cancelled";
+  status: "active" | "completed" | "cancelled" | "incomplete";
   created_by: string;
   winner_id: string | null;
   winning_bid_id: string | null;
@@ -199,6 +199,8 @@ export default function AuctionDetailPage() {
         return <CheckCircle className="w-5 h-5 text-blue-600" />;
       case "cancelled":
         return <XCircle className="w-5 h-5 text-red-600" />;
+      case "incomplete":
+        return <AlertCircle className="w-5 h-5 text-yellow-600" />;
       default:
         return <AlertCircle className="w-5 h-5 text-gray-600" />;
     }
@@ -209,6 +211,7 @@ export default function AuctionDetailPage() {
       active: "bg-green-100 text-green-800 border-green-200",
       completed: "bg-blue-100 text-blue-800 border-blue-200",
       cancelled: "bg-red-100 text-red-800 border-red-200",
+      incomplete: "bg-yellow-100 text-yellow-800 border-yellow-200",
     };
     return `px-3 py-1 rounded-full text-sm font-medium border ${
       styles[status as keyof typeof styles] ||
@@ -403,6 +406,7 @@ export default function AuctionDetailPage() {
                   <option value="active">Active</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
+                  <option value="incomplete">Incomplete</option>
                 </select>
               </div>
 

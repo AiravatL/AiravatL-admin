@@ -27,6 +27,7 @@ interface AuctionStats {
   activeAuctions: number;
   completedAuctions: number;
   cancelledAuctions: number;
+  incompleteAuctions: number;
   totalBidsPlaced: number;
   avgBidsPerAuction: number;
   vehicleTypeDistribution: { [key: string]: number };
@@ -41,7 +42,7 @@ interface Auction {
   start_time: string;
   end_time: string;
   consignment_date: string;
-  status: "active" | "completed" | "cancelled";
+  status: "active" | "completed" | "cancelled" | "incomplete";
   created_by: string;
   winner_id: string | null;
   winning_bid_id: string | null;
@@ -88,7 +89,7 @@ export default function AuctionsPage() {
     "medium_truck",
     "large_truck",
   ];
-  const statusTypes = ["active", "completed", "cancelled"];
+  const statusTypes = ["active", "completed", "cancelled", "incomplete"];
 
   useEffect(() => {
     if (isSupabaseAvailable()) {
@@ -101,6 +102,7 @@ export default function AuctionsPage() {
         activeAuctions: 4,
         completedAuctions: 7,
         cancelledAuctions: 1,
+        incompleteAuctions: 0,
         totalBidsPlaced: 89,
         avgBidsPerAuction: 7.4,
         vehicleTypeDistribution: { truck: 8, mini_truck: 3, van: 1 },
@@ -237,6 +239,9 @@ export default function AuctionsPage() {
       const cancelledAuctions = auctionsWithBids.filter(
         (a) => a.status === "cancelled"
       ).length;
+      const incompleteAuctions = auctionsWithBids.filter(
+        (a) => a.status === "incomplete"
+      ).length;
       const totalBidsPlaced = auctionsWithBids.reduce(
         (sum, a) => sum + (a.bid_count || 0),
         0
@@ -264,6 +269,7 @@ export default function AuctionsPage() {
         activeAuctions,
         completedAuctions,
         cancelledAuctions,
+        incompleteAuctions,
         totalBidsPlaced,
         avgBidsPerAuction,
         vehicleTypeDistribution,
@@ -346,6 +352,8 @@ export default function AuctionsPage() {
         return <CheckCircle className="w-4 h-4 text-blue-600" />;
       case "cancelled":
         return <XCircle className="w-4 h-4 text-red-600" />;
+      case "incomplete":
+        return <AlertCircle className="w-4 h-4 text-yellow-600" />;
       default:
         return <AlertCircle className="w-4 h-4 text-gray-600" />;
     }
@@ -356,6 +364,7 @@ export default function AuctionsPage() {
       active: "bg-green-100 text-green-800",
       completed: "bg-blue-100 text-blue-800",
       cancelled: "bg-red-100 text-red-800",
+      incomplete: "bg-yellow-100 text-yellow-800",
     };
     return `px-2 py-1 rounded-full text-xs font-medium ${
       styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800"
@@ -392,7 +401,7 @@ export default function AuctionsPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -445,14 +454,30 @@ export default function AuctionsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">
+                Incomplete
+              </p>
+              <p className="text-3xl font-bold text-gray-900">
+                {stats?.incompleteAuctions || 0}
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-yellow-50">
+              <AlertCircle className="w-6 h-6 text-yellow-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">
                 Total Bids
               </p>
               <p className="text-3xl font-bold text-gray-900">
                 {stats?.totalBidsPlaced || 0}
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-yellow-50">
-              <DollarSign className="w-6 h-6 text-yellow-600" />
+            <div className="p-3 rounded-xl bg-orange-50">
+              <DollarSign className="w-6 h-6 text-orange-600" />
             </div>
           </div>
         </div>
