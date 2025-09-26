@@ -16,16 +16,58 @@ import {
   MapPin,
   Package,
   Activity,
-  TrendingDown,
-  TrendingUp,
   Trophy,
   Settings,
   Save,
   RotateCcw,
   X,
   Trash2,
+  Edit3,
+  Check,
+  Weight,
+  Ruler,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
+
+// Vehicle type mappings from the Expo app
+const VEHICLE_TYPES = [
+  { id: "three_wheeler", title: "Three Wheeler", icon: "🛺", capacity: "Up to 200kg" },
+  { id: "pickup_truck", title: "Pickup Truck", icon: "🚙", capacity: "Up to 1000kg" },
+  { id: "mini_truck", title: "Mini Truck", icon: "🚐", capacity: "Up to 2000kg" },
+  { id: "medium_truck", title: "Medium Truck", icon: "🚚", capacity: "Up to 5000kg" },
+  { id: "large_truck", title: "Large Truck", icon: "🚛", capacity: "Up to 10000kg" },
+];
+
+const BODY_TYPES = [
+  { id: "container", title: "Container", icon: "📦", description: "Fully enclosed container" },
+  { id: "top_open", title: "Top Open", icon: "📤", description: "Open top for easy loading" },
+  { id: "trailer", title: "Trailer", icon: "🚛", description: "Large trailer for heavy cargo" },
+];
+
+const WHEEL_TYPES = [
+  { value: 4, label: "4 Wheeler", icon: "🚗" },
+  { value: 6, label: "6 Wheeler", icon: "🚚" },
+  { value: 10, label: "10 Wheeler", icon: "🚛" },
+  { value: 12, label: "12 Wheeler", icon: "🚛" },
+  { value: 14, label: "14 Wheeler", icon: "🚛" },
+  { value: 18, label: "18 Wheeler", icon: "🚛" },
+];
+
+interface ParsedAuctionData {
+  pickup: string;
+  dropoff: string;
+  description: string;
+  weight: string;
+  weightUnit: string;
+  vehicleType: string;
+  lengthValue?: string;
+  lengthUnit?: string;
+  bodyType?: string;
+  wheelType?: number;
+  consignmentDate: string;
+  endTime: string;
+}
 
 interface AuctionDetail {
   id: string;
@@ -35,18 +77,19 @@ interface AuctionDetail {
   start_time: string;
   end_time: string;
   consignment_date: string;
-  pickup_location: string | null;
-  dropoff_location: string | null;
-  estimated_distance: number | null;
-  weight: number | null;
-  cargo_type: string | null;
+  length_value: number | null;
+  length_unit: string | null;
+  body_type: string | null;
+  wheel_type: number | null;
+  bid_count: number | null;
+  lowest_bid_amount: number | null;
+  highest_bid_amount: number | null;
   status: "active" | "completed" | "cancelled" | "incomplete";
   created_by: string;
   winner_id: string | null;
   winning_bid_id: string | null;
   created_at: string;
   updated_at: string;
-  // Related data
   consigner?: {
     id: string;
     username: string;
@@ -88,20 +131,6 @@ interface Bid {
   };
 }
 
-interface AuditLog {
-  id: string;
-  auction_id: string;
-  user_id: string | null;
-  action: string;
-  details: Record<string, unknown>;
-  created_at: string;
-  user?: {
-    username: string;
-    first_name: string | null;
-    last_name: string | null;
-  };
-}
-
 export default function AuctionDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -119,6 +148,83 @@ export default function AuctionDetailPage() {
   const [realtimeStatus, setRealtimeStatus] = useState<string>('connecting');
   const subscriptionRef = useRef<any>(null);
 
+  // Edit states
+  const [editingAuction, setEditingAuction] = useState(false);
+  const [editedData, setEditedData] = useState<ParsedAuctionData>({
+    pickup: "",
+    dropoff: "",
+    description: "",
+    weight: "",
+    weightUnit: "kg",
+    vehicleType: "",
+    lengthValue: "",
+    lengthUnit: "meter",
+    bodyType: "top_open",
+    wheelType: 4,
+    consignmentDate: "",
+    endTime: "",
+  });
+  const [updatingAuction, setUpdatingAuction] = useState(false);
+  const [editingBid, setEditingBid] = useState<string | null>(null);
+  const [editedBidAmount, setEditedBidAmount] = useState('');
+  const [updatingBid, setUpdatingBid] = useState(false);
+
+  // Parse auction data from title and description
+  const parseAuctionData = useCallback((auction: AuctionDetail): ParsedAuctionData => {
+    // Parse title: "Delivery from {pickup} to {dropoff}"
+    const titleMatch = auction.title.match(/Delivery from (.+) to (.+)/);
+    const pickup = titleMatch ? titleMatch[1] : "";
+    const dropoff = titleMatch ? titleMatch[2] : "";
+
+    // Parse description for weight, vehicle type, etc.
+    const description = auction.description;
+    const lines = description.split('\n');
+
+    let cleanDescription = "";
+    let weight = "";
+    let weightUnit = "kg";
+    let vehicleType = auction.vehicle_type;
+
+    for (const line of lines) {
+      if (line.startsWith('Weight: ')) {
+        const weightMatch = line.match(/Weight: ([\d.]+)\s*(kg|ton)/);
+        if (weightMatch) {
+          weight = weightMatch[1];
+          weightUnit = weightMatch[2];
+        }
+      } else if (line.startsWith('Vehicle Type: ')) {
+        // Vehicle type is already in the database field
+        continue;
+      } else if (line.startsWith('Length: ')) {
+        // Already handled by database fields
+        continue;
+      } else if (line.startsWith('Body Type: ')) {
+        // Already handled by database fields
+        continue;
+      } else if (line.startsWith('Wheel Type: ')) {
+        // Already handled by database fields
+        continue;
+      } else if (line.trim()) {
+        cleanDescription += (cleanDescription ? '\n' : '') + line;
+      }
+    }
+
+    return {
+      pickup,
+      dropoff,
+      description: cleanDescription,
+      weight,
+      weightUnit,
+      vehicleType,
+      lengthValue: auction.length_value?.toString() || "",
+      lengthUnit: auction.length_unit || "meter",
+      bodyType: auction.body_type || "top_open",
+      wheelType: auction.wheel_type || 4,
+      consignmentDate: auction.consignment_date,
+      endTime: auction.end_time,
+    };
+  }, []);
+
   useEffect(() => {
     if (auctionId && isSupabaseAvailable()) {
       fetchAuctionDetails();
@@ -128,7 +234,6 @@ export default function AuctionDetailPage() {
       setError("Supabase configuration not available");
     }
 
-    // Cleanup subscriptions on unmount
     return () => {
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
@@ -139,20 +244,23 @@ export default function AuctionDetailPage() {
   useEffect(() => {
     if (auction) {
       setSelectedStatus(auction.status);
+      const parsedData = parseAuctionData(auction);
+      setEditedData(parsedData);
     }
-  }, [auction]);
+  }, [auction, parseAuctionData]);
 
   const fetchAuctionDetails = useCallback(async () => {
     if (!auctionId) return;
-    
+
     try {
-      // Use a single optimized query with proper joins
       const [auctionResult, bidsResult] = await Promise.all([
-        // Fetch auction with all related data in one query
         supabase
           .from("auctions")
           .select(`
-            *,
+            id, title, description, vehicle_type, start_time, end_time, consignment_date,
+            length_value, length_unit, body_type, wheel_type, status, created_by,
+            winner_id, winning_bid_id, created_at, updated_at, bid_count,
+            lowest_bid_amount, highest_bid_amount,
             profiles!auctions_created_by_fkey (
               id, username, first_name, last_name, email, phone_number
             ),
@@ -166,7 +274,6 @@ export default function AuctionDetailPage() {
           .eq("id", auctionId)
           .single(),
 
-        // Fetch all bids with user data
         supabase
           .from("auction_bids")
           .select(`
@@ -197,7 +304,7 @@ export default function AuctionDetailPage() {
       });
 
       setBids(bidsData.map((bid) => ({ ...bid, user: bid.profiles || {} })));
-      
+
     } catch (err: any) {
       console.error("Error fetching auction details:", err);
       setError(err.message);
@@ -209,9 +316,6 @@ export default function AuctionDetailPage() {
   const setupRealTimeSubscriptions = useCallback(() => {
     if (!auctionId) return;
 
-    console.log("Setting up real-time subscriptions for auction:", auctionId);
-
-    // Create a channel for this auction
     const channel = supabase
       .channel(`auction_${auctionId}`)
       .on(
@@ -222,11 +326,7 @@ export default function AuctionDetailPage() {
           table: 'auction_bids',
           filter: `auction_id=eq.${auctionId}`,
         },
-        (payload) => {
-          console.log('Bid change detected:', payload);
-          // Refresh bids when any bid is inserted, updated, or deleted
-          fetchAuctionDetails();
-        }
+        () => fetchAuctionDetails()
       )
       .on(
         'postgres_changes',
@@ -236,25 +336,21 @@ export default function AuctionDetailPage() {
           table: 'auctions',
           filter: `id=eq.${auctionId}`,
         },
-        (payload) => {
-          console.log('Auction change detected:', payload);
-          // Refresh auction when status or winner changes
-          fetchAuctionDetails();
-        }
+        () => fetchAuctionDetails()
       )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-        setRealtimeStatus(status);
-      });
+      .subscribe((status) => setRealtimeStatus(status));
 
     subscriptionRef.current = channel;
   }, [auctionId, fetchAuctionDetails]);
 
   const formatVehicleType = (type: string) => {
-    return type
-      ?.split("_")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
+    const vehicleType = VEHICLE_TYPES.find(v => v.id === type);
+    return vehicleType ? vehicleType.title : type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getVehicleIcon = (type: string) => {
+    const vehicleType = VEHICLE_TYPES.find(v => v.id === type);
+    return vehicleType ? vehicleType.icon : "🚚";
   };
 
   const getStatusIcon = (status: string) => {
@@ -292,63 +388,172 @@ export default function AuctionDetailPage() {
     return user?.username || "Unknown User";
   };
 
-  const getBidTrend = (currentBid: Bid, index: number) => {
-    if (index === bids.length - 1) return null;
-    const nextBid = bids[index + 1];
-    const currentAmount = parseFloat(currentBid.amount);
-    const nextAmount = parseFloat(nextBid.amount);
-
-    if (currentAmount < nextAmount) {
-      return <TrendingDown className="w-4 h-4 text-green-600" />;
-    } else if (currentAmount > nextAmount) {
-      return <TrendingUp className="w-4 h-4 text-red-600" />;
-    }
-    return null;
+  const startEditingAuction = () => {
+    setEditingAuction(true);
   };
 
-  const updateAuctionStatus = async () => {
-    if (!auction || selectedStatus === auction.status) return;
+  const cancelEditingAuction = () => {
+    if (auction) {
+      const parsedData = parseAuctionData(auction);
+      setEditedData(parsedData);
+    }
+    setEditingAuction(false);
+  };
 
-    setUpdating(true);
+  const saveAuctionChanges = async () => {
+    if (!auction) return;
+
+    // Validation
+    const errors = [];
+    if (!editedData.pickup.trim()) errors.push('Pickup location is required');
+    if (!editedData.dropoff.trim()) errors.push('Dropoff location is required');
+    if (!editedData.description.trim()) errors.push('Description is required');
+    if (!editedData.weight.trim()) errors.push('Weight is required');
+    if (!editedData.vehicleType) errors.push('Vehicle type is required');
+    if (!editedData.consignmentDate) errors.push('Consignment date is required');
+    if (!editedData.endTime) errors.push('Auction end time is required');
+
+    const weightNum = parseFloat(editedData.weight);
+    if (isNaN(weightNum) || weightNum <= 0) {
+      errors.push('Please enter a valid weight');
+    }
+
+    // Validate dates
+    const consignmentDate = new Date(editedData.consignmentDate);
+    const endTime = new Date(editedData.endTime);
+    const now = new Date();
+
+    if (consignmentDate < now) {
+      errors.push('Consignment date cannot be in the past');
+    }
+
+    if (endTime < now) {
+      errors.push('Auction end time cannot be in the past');
+    }
+
+    if (endTime > consignmentDate) {
+      errors.push('Auction must end before the consignment date');
+    }
+
+    if (errors.length > 0) {
+      setError('Validation errors: ' + errors.join(', '));
+      return;
+    }
+
+    setUpdatingAuction(true);
     try {
-      const { error } = await supabase
-        .from("auctions")
-        .update({
-          status: selectedStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", auctionId);
+      // Reconstruct title and description
+      const newTitle = `Delivery from ${editedData.pickup} to ${editedData.dropoff}`;
+      let newDescription = editedData.description;
+      newDescription += `\nWeight: ${editedData.weight} ${editedData.weightUnit}`;
+      newDescription += `\nVehicle Type: ${formatVehicleType(editedData.vehicleType)}`;
 
-      if (error) throw error;
+      if (editedData.lengthValue) {
+        newDescription += `\nLength: ${editedData.lengthValue} ${editedData.lengthUnit}`;
+      }
 
-      // Create audit log
-      await supabase.from("auction_audit_logs").insert({
-        auction_id: auctionId,
-        user_id: null, // Admin user - could be improved to track admin user
-        action: `Status changed from ${auction.status} to ${selectedStatus}`,
-        details: {
-          previous_status: auction.status,
-          new_status: selectedStatus,
-          changed_by: "admin",
+      if (editedData.bodyType !== "top_open") {
+        const bodyType = BODY_TYPES.find(bt => bt.id === editedData.bodyType);
+        newDescription += `\nBody Type: ${bodyType?.title || editedData.bodyType}`;
+      }
+
+      if (editedData.vehicleType === "large_truck" && editedData.wheelType !== 4) {
+        newDescription += `\nWheel Type: ${editedData.wheelType} Wheeler`;
+      }
+
+      const response = await fetch('/api/admin/update-auction', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          auctionId: auction.id,
+          updates: {
+            title: newTitle,
+            description: newDescription,
+            vehicle_type: editedData.vehicleType,
+            length_value: editedData.lengthValue ? parseFloat(editedData.lengthValue) : null,
+            length_unit: editedData.lengthUnit,
+            body_type: editedData.bodyType,
+            wheel_type: editedData.vehicleType === "large_truck" ? editedData.wheelType : null,
+            consignment_date: editedData.consignmentDate,
+            end_time: editedData.endTime,
+          },
+        }),
       });
 
-      // Refresh auction data
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update auction');
+      }
+
       await fetchAuctionDetails();
-      setShowStatusManager(false);
+      setEditingAuction(false);
+      setError(null);
+
     } catch (err: any) {
-      console.error("Error updating auction status:", err);
-      setError("Failed to update auction status: " + err.message);
+      console.error("Error updating auction:", err);
+      setError("Failed to update auction: " + err.message);
     } finally {
-      setUpdating(false);
+      setUpdatingAuction(false);
     }
   };
 
-  const resetStatusChanges = () => {
-    if (auction) {
-      setSelectedStatus(auction.status);
+  const startEditingBid = (bidId: string, currentAmount: string) => {
+    setEditingBid(bidId);
+    setEditedBidAmount(currentAmount);
+  };
+
+  const cancelEditingBid = () => {
+    setEditingBid(null);
+    setEditedBidAmount('');
+  };
+
+  const saveBidAmount = async (bidId: string) => {
+    if (!bidId || !editedBidAmount) return;
+
+    const amount = parseFloat(editedBidAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setError('Bid amount must be a positive number');
+      return;
     }
-    setShowStatusManager(false);
+    if (amount > 10000000) {
+      setError('Bid amount cannot exceed ₹1,00,00,000');
+      return;
+    }
+
+    setUpdatingBid(true);
+    try {
+      const response = await fetch('/api/admin/update-bid', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bidId: bidId,
+          auctionId: auctionId,
+          newAmount: editedBidAmount,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update bid');
+      }
+
+      await fetchAuctionDetails();
+      setEditingBid(null);
+      setEditedBidAmount('');
+      setError(null);
+
+    } catch (err: any) {
+      console.error("Error updating bid:", err);
+      setError("Failed to update bid: " + err.message);
+    } finally {
+      setUpdatingBid(false);
+    }
   };
 
   const deleteBid = async (bidId: string) => {
@@ -356,9 +561,6 @@ export default function AuctionDetailPage() {
 
     setDeletingBid(true);
     try {
-      console.log("Attempting to delete bid via API:", bidId);
-
-      // Call the admin API endpoint to delete the bid
       const response = await fetch('/api/admin/delete-bid', {
         method: 'DELETE',
         headers: {
@@ -373,27 +575,15 @@ export default function AuctionDetailPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        const errorMessage = result.error || 'Failed to delete bid';
-        const errorDetails = result.details || '';
-        console.error("Bid deletion failed:", { status: response.status, error: errorMessage, details: errorDetails });
-        throw new Error(`${errorMessage}${errorDetails ? ` (${errorDetails})` : ''}`);
+        throw new Error(result.error || 'Failed to delete bid');
       }
 
-      console.log("Bid deletion API response:", result);
-
-      // Close the confirmation modal 
       setShowDeleteConfirm(null);
-      
-      // Clear any previous errors
       setError(null);
-      
-      // Force refresh if real-time isn't working
+
       setTimeout(() => {
         fetchAuctionDetails();
       }, 1000);
-      
-      // Show success message
-      console.log("Bid deletion completed successfully:", result.message);
 
     } catch (err: any) {
       console.error("Error deleting bid:", err);
@@ -403,30 +593,71 @@ export default function AuctionDetailPage() {
     }
   };
 
+  const updateAuctionStatus = async () => {
+    if (!auction || selectedStatus === auction.status) return;
+
+    setUpdating(true);
+    try {
+      const response = await fetch('/api/admin/update-auction-status', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          auctionId: auctionId,
+          status: selectedStatus,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update auction status');
+      }
+
+      console.log('Auction status updated successfully:', result);
+      await fetchAuctionDetails();
+      setShowStatusManager(false);
+    } catch (err: any) {
+      console.error("Error updating auction status:", err);
+      setError("Failed to update auction status: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-sm p-8 flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Loading auction details...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/auctions"
-            className="flex items-center text-indigo-600 hover:text-indigo-700"
-          >
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Back to Auctions
-          </Link>
-        </div>
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          <div className="flex items-center">
-            <Activity className="w-5 h-5 mr-2" />
-            Error loading auction details: {error}
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <Link
+              href="/auctions"
+              className="flex items-center text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Back to Auctions
+            </Link>
+          </div>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 mr-3" />
+              <div>
+                <h3 className="font-semibold">Error loading auction details</h3>
+                <p className="text-sm mt-1">{error}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -435,20 +666,25 @@ export default function AuctionDetailPage() {
 
   if (!auction) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/auctions"
-            className="flex items-center text-indigo-600 hover:text-indigo-700"
-          >
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Back to Auctions
-          </Link>
-        </div>
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            Auction not found
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <Link
+              href="/auctions"
+              className="flex items-center text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Back to Auctions
+            </Link>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-6 py-4 rounded-xl">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 mr-3" />
+              <div>
+                <h3 className="font-semibold">Auction not found</h3>
+                <p className="text-sm mt-1">The requested auction could not be found.</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -456,582 +692,858 @@ export default function AuctionDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/auctions"
-          className="flex items-center text-indigo-600 hover:text-indigo-700"
-        >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Back to Auctions
-        </Link>
-        <div className="flex items-center space-x-3">
-          {getStatusIcon(auction.status)}
-          <span className={getStatusBadge(auction.status)}>
-            {auction.status?.charAt(0).toUpperCase() + auction.status?.slice(1)}
-          </span>
-          <button
-            onClick={() => setShowStatusManager(true)}
-            className="flex items-center px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <Link
+            href="/auctions"
+            className="flex items-center text-blue-600 hover:text-blue-700 transition-colors"
           >
-            <Settings className="w-4 h-4 mr-1" />
-            Manage Status
-          </button>
-          {/* Real-time status indicator */}
-          <div className="flex items-center text-xs">
-            <div className={`w-2 h-2 rounded-full mr-1 ${
-              realtimeStatus === 'SUBSCRIBED' ? 'bg-green-500' : 
-              realtimeStatus === 'CHANNEL_ERROR' ? 'bg-red-500' : 'bg-yellow-500'
-            }`}></div>
-            <span className="text-gray-500">
-              {realtimeStatus === 'SUBSCRIBED' ? 'Live' : 
-               realtimeStatus === 'CHANNEL_ERROR' ? 'Offline' : 'Connecting'}
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back to Auctions
+          </Link>
+
+          <div className="flex items-center space-x-3">
+            {getStatusIcon(auction.status)}
+            <span className={getStatusBadge(auction.status)}>
+              {auction.status?.charAt(0).toUpperCase() + auction.status?.slice(1)}
             </span>
+            <button
+              onClick={() => setShowStatusManager(true)}
+              className="flex items-center px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Manage Status
+            </button>
+            <button
+              onClick={editingAuction ? cancelEditingAuction : startEditingAuction}
+              className="flex items-center px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+            >
+              {editingAuction ? (
+                <>
+                  <X className="w-4 h-4 mr-2" />
+                  Cancel Edit
+                </>
+              ) : (
+                <>
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Edit Details
+                </>
+              )}
+            </button>
+            {editingAuction && (
+              <button
+                onClick={saveAuctionChanges}
+                disabled={updatingAuction}
+                className="flex items-center px-4 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {updatingAuction ? 'Saving...' : 'Save Changes'}
+              </button>
+            )}
+
+            {/* Real-time indicator */}
+            <div className="flex items-center text-xs">
+              <div className={`w-2 h-2 rounded-full mr-2 ${
+                realtimeStatus === 'SUBSCRIBED' ? 'bg-green-500' :
+                realtimeStatus === 'CHANNEL_ERROR' ? 'bg-red-500' : 'bg-yellow-500'
+              }`}></div>
+              <span className="text-gray-500">
+                {realtimeStatus === 'SUBSCRIBED' ? 'Live' :
+                 realtimeStatus === 'CHANNEL_ERROR' ? 'Offline' : 'Connecting'}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Status Management Modal */}
-      {showStatusManager && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                <Settings className="w-5 h-5 mr-2" />
-                Manage Auction Status
-              </h2>
-              <button
-                onClick={resetStatusChanges}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Current Status
-                </label>
-                <div className="flex items-center">
-                  {getStatusIcon(auction.status)}
-                  <span className={`ml-2 ${getStatusBadge(auction.status)}`}>
-                    {auction.status?.charAt(0).toUpperCase() +
-                      auction.status?.slice(1)}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Change Status To
-                </label>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white"
+        {/* Status Management Modal */}
+        {showStatusManager && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <Settings className="w-5 h-5 mr-2" />
+                  Manage Auction Status
+                </h2>
+                <button
+                  onClick={() => setShowStatusManager(false)}
+                  className="text-gray-400 hover:text-gray-600"
                 >
-                  <option value="active">Active</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="incomplete">Incomplete</option>
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              {selectedStatus !== auction.status && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Current Status
+                  </label>
                   <div className="flex items-center">
-                    <AlertCircle className="w-4 h-4 text-yellow-600 mr-2" />
-                    <span className="text-sm text-yellow-700">
-                      This will change the auction status from{" "}
-                      <strong>{auction.status}</strong> to{" "}
-                      <strong>{selectedStatus}</strong>
+                    {getStatusIcon(auction.status)}
+                    <span className={`ml-2 ${getStatusBadge(auction.status)}`}>
+                      {auction.status?.charAt(0).toUpperCase() + auction.status?.slice(1)}
                     </span>
                   </div>
                 </div>
-              )}
-            </div>
 
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={resetStatusChanges}
-                className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center"
-              >
-                <RotateCcw className="w-4 h-4 mr-1" />
-                Cancel
-              </button>
-              <button
-                onClick={updateAuctionStatus}
-                disabled={updating || selectedStatus === auction.status}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
-              >
-                <Save className="w-4 h-4 mr-1" />
-                {updating ? "Updating..." : "Update Status"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Bid Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                <Trash2 className="w-5 h-5 mr-2 text-red-600" />
-                Delete Bid
-              </h2>
-              <button
-                onClick={() => setShowDeleteConfirm(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-center">
-                  <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
-                  <span className="text-sm text-red-700">
-                    This action cannot be undone. The bid will be permanently removed from the auction.
-                  </span>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Change Status To
+                  </label>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="incomplete">Incomplete</option>
+                  </select>
                 </div>
+
+                {selectedStatus !== auction.status && (
+                  <div className={`border rounded-lg p-3 ${
+                    selectedStatus === 'cancelled'
+                      ? 'bg-red-50 border-red-200'
+                      : 'bg-yellow-50 border-yellow-200'
+                  }`}>
+                    <div className="flex items-center">
+                      <AlertCircle className={`w-4 h-4 mr-2 ${
+                        selectedStatus === 'cancelled' ? 'text-red-600' : 'text-yellow-600'
+                      }`} />
+                      <span className={`text-sm ${
+                        selectedStatus === 'cancelled' ? 'text-red-700' : 'text-yellow-700'
+                      }`}>
+                        This will change the auction status from{" "}
+                        <strong>{auction.status}</strong> to{" "}
+                        <strong>{selectedStatus}</strong>
+                        {selectedStatus === 'cancelled' && (
+                          <span className="block mt-1">
+                            ⚠️ <strong>Warning:</strong> Cancelling will clear the current winner and winning bid!
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {(() => {
-                const bid = bids.find(b => b.id === showDeleteConfirm);
-                const isWinningBid = auction?.winning_bid_id === showDeleteConfirm;
-                return (
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Bid Details:</p>
-                      <p className="text-gray-900">
-                        ₹{bid ? parseFloat(bid.amount).toLocaleString() : 'N/A'} by{' '}
-                        {bid?.user?.username || 'Unknown User'}
-                      </p>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowStatusManager(false)}
+                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={updateAuctionStatus}
+                  disabled={updating || selectedStatus === auction.status}
+                  className={`px-4 py-2 text-sm rounded-lg transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${
+                    selectedStatus === 'cancelled'
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  <Save className="w-4 h-4 mr-1" />
+                  {updating
+                    ? "Updating..."
+                    : selectedStatus === 'cancelled'
+                      ? "Cancel Auction"
+                      : "Update Status"
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Bid Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <Trash2 className="w-5 h-5 mr-2 text-red-600" />
+                  Delete Bid
+                </h2>
+                <button
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
+                    <span className="text-sm text-red-700">
+                      This action cannot be undone. The bid will be permanently removed from the auction.
+                    </span>
+                  </div>
+                </div>
+
+                {(() => {
+                  const bid = bids.find(b => b.id === showDeleteConfirm);
+                  const isWinningBid = auction?.winning_bid_id === showDeleteConfirm;
+                  return (
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Bid Details:</p>
+                        <p className="text-gray-900">
+                          ₹{bid ? parseFloat(bid.amount).toLocaleString() : 'N/A'} by{' '}
+                          {bid?.user?.username || 'Unknown User'}
+                        </p>
+                      </div>
+
+                      {isWinningBid && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                          <div className="flex items-center">
+                            <Trophy className="w-4 h-4 text-yellow-600 mr-2" />
+                            <span className="text-sm text-yellow-700">
+                              This is the winning bid. Deleting it will remove the auction winner.
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    
-                    {isWinningBid && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <div className="flex items-center">
-                          <Trophy className="w-4 h-4 text-yellow-600 mr-2" />
-                          <span className="text-sm text-yellow-700">
-                            This is the winning bid. Deleting it will remove the auction winner.
-                          </span>
+                  );
+                })()}
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteBid(showDeleteConfirm)}
+                  disabled={deletingBid}
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  {deletingBid ? "Deleting..." : "Delete Bid"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Auction Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Delivery Information */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <MapPin className="w-5 h-5 mr-2 text-blue-600" />
+                  Delivery Information
+                </h2>
+              </div>
+
+              <div className="space-y-6">
+                {/* Route */}
+                <div className="flex items-center space-x-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pickup Location
+                    </label>
+                    {editingAuction ? (
+                      <input
+                        type="text"
+                        value={editedData.pickup}
+                        onChange={(e) => setEditedData({ ...editedData, pickup: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter pickup location"
+                      />
+                    ) : (
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <MapPin className="w-4 h-4 text-green-600 mr-2" />
+                        <span className="text-gray-900">{parseAuctionData(auction).pickup}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-shrink-0 pt-6">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <ArrowLeft className="w-4 h-4 text-blue-600 rotate-180" />
+                    </div>
+                  </div>
+
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Drop-off Location
+                    </label>
+                    {editingAuction ? (
+                      <input
+                        type="text"
+                        value={editedData.dropoff}
+                        onChange={(e) => setEditedData({ ...editedData, dropoff: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter drop-off location"
+                      />
+                    ) : (
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <MapPin className="w-4 h-4 text-red-600 mr-2" />
+                        <span className="text-gray-900">{parseAuctionData(auction).dropoff}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  {editingAuction ? (
+                    <textarea
+                      value={editedData.description}
+                      onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Describe your delivery requirements"
+                    />
+                  ) : (
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-gray-900 whitespace-pre-wrap">{parseAuctionData(auction).description}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Weight and Length */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Weight
+                    </label>
+                    {editingAuction ? (
+                      <div className="flex space-x-2">
+                        <input
+                          type="number"
+                          value={editedData.weight}
+                          onChange={(e) => setEditedData({ ...editedData, weight: e.target.value })}
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Enter weight"
+                        />
+                        <select
+                          value={editedData.weightUnit}
+                          onChange={(e) => setEditedData({ ...editedData, weightUnit: e.target.value })}
+                          className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="kg">kg</option>
+                          <option value="ton">ton</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <Weight className="w-4 h-4 text-purple-600 mr-2" />
+                        <span className="text-gray-900">
+                          {parseAuctionData(auction).weight} {parseAuctionData(auction).weightUnit}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Length (Optional)
+                    </label>
+                    {editingAuction ? (
+                      <div className="flex space-x-2">
+                        <input
+                          type="number"
+                          value={editedData.lengthValue}
+                          onChange={(e) => setEditedData({ ...editedData, lengthValue: e.target.value })}
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Length"
+                        />
+                        <select
+                          value={editedData.lengthUnit}
+                          onChange={(e) => setEditedData({ ...editedData, lengthUnit: e.target.value })}
+                          className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="meter">meters</option>
+                          <option value="feet">feet</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <Ruler className="w-4 h-4 text-orange-600 mr-2" />
+                        <span className="text-gray-900">
+                          {editedData.lengthValue ? `${editedData.lengthValue} ${editedData.lengthUnit}` : 'Not specified'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Vehicle Requirements */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center mb-6">
+                <Truck className="w-5 h-5 mr-2 text-blue-600" />
+                Vehicle Requirements
+              </h2>
+
+              <div className="space-y-6">
+                {/* Vehicle Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Vehicle Type
+                  </label>
+                  {editingAuction ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {VEHICLE_TYPES.map((type) => (
+                        <button
+                          key={type.id}
+                          onClick={() => setEditedData({ ...editedData, vehicleType: type.id })}
+                          className={`p-4 border-2 rounded-lg text-left transition-all ${
+                            editedData.vehicleType === type.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="text-2xl mb-2">{type.icon}</div>
+                          <div className="font-medium text-gray-900">{type.title}</div>
+                          <div className="text-sm text-gray-600">{type.capacity}</div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                      <span className="text-2xl mr-3">{getVehicleIcon(auction.vehicle_type)}</span>
+                      <div>
+                        <div className="font-medium text-gray-900">{formatVehicleType(auction.vehicle_type)}</div>
+                        <div className="text-sm text-gray-600">
+                          {VEHICLE_TYPES.find(v => v.id === auction.vehicle_type)?.capacity}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Body Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Body Type
+                  </label>
+                  {editingAuction ? (
+                    <div className="space-y-2">
+                      {BODY_TYPES.map((type) => (
+                        <button
+                          key={type.id}
+                          onClick={() => setEditedData({ ...editedData, bodyType: type.id })}
+                          className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
+                            editedData.bodyType === type.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <span className="text-xl mr-3">{type.icon}</span>
+                            <div>
+                              <div className="font-medium text-gray-900">{type.title}</div>
+                              <div className="text-sm text-gray-600">{type.description}</div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                      <span className="text-xl mr-3">
+                        {BODY_TYPES.find(bt => bt.id === auction.body_type)?.icon || "📤"}
+                      </span>
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {BODY_TYPES.find(bt => bt.id === auction.body_type)?.title || "Top Open"}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {BODY_TYPES.find(bt => bt.id === auction.body_type)?.description || "Open top for easy loading"}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Wheel Configuration for Large Trucks */}
+                {(editingAuction ? editedData.vehicleType === "large_truck" : auction.vehicle_type === "large_truck") && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Wheel Configuration
+                    </label>
+                    {editingAuction ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {WHEEL_TYPES.map((type) => (
+                          <button
+                            key={type.value}
+                            onClick={() => setEditedData({ ...editedData, wheelType: type.value })}
+                            className={`p-3 border-2 rounded-lg text-center transition-all ${
+                              editedData.wheelType === type.value
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="text-lg mb-1">{type.icon}</div>
+                            <div className="text-sm font-medium text-gray-900">{type.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                        <span className="text-xl mr-3">
+                          {WHEEL_TYPES.find(wt => wt.value === auction.wheel_type)?.icon || "🚛"}
+                        </span>
+                        <div className="font-medium text-gray-900">
+                          {auction.wheel_type ? `${auction.wheel_type} Wheeler` : "4 Wheeler"}
                         </div>
                       </div>
                     )}
                   </div>
-                );
-              })()}
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowDeleteConfirm(null)}
-                className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteBid(showDeleteConfirm)}
-                disabled={deletingBid}
-                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                {deletingBid ? "Deleting..." : "Delete Bid"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Auction Title & Info */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {auction.title}
-            </h1>
-            <p className="text-gray-600 mb-4">{auction.description}</p>
-            <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-              <div className="flex items-center">
-                <Calendar className="w-4 h-4 mr-1" />
-                <span>
-                  Created: {new Date(auction.created_at).toLocaleString()}
-                </span>
-              </div>
-              <div className="flex items-center">
-                <Clock className="w-4 h-4 mr-1" />
-                <span>Ends: {new Date(auction.end_time).toLocaleString()}</span>
-              </div>
-              <div className="flex items-center">
-                <Truck className="w-4 h-4 mr-1" />
-                <span>
-                  Job Date:{" "}
-                  {new Date(auction.consignment_date).toLocaleDateString()}
-                </span>
+                )}
               </div>
             </div>
-          </div>
-          <div className="ml-6">
-            <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">
-              {formatVehicleType(auction.vehicle_type)}
-            </span>
-          </div>
-        </div>
-      </div>
 
-      {/* Key Information Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        {/* Consigner Info */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 lg:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Consigner</h3>
-            <User className="w-5 h-5 text-indigo-600" />
-          </div>
-          <div className="space-y-2">
-            <p className="font-medium text-gray-900">
-              {getUserDisplayName(auction.consigner)}
-            </p>
-            <p className="text-sm text-gray-500">
-              @{auction.consigner?.username}
-            </p>
-            {auction.consigner?.email && (
-              <p className="text-sm text-gray-600">{auction.consigner.email}</p>
-            )}
-            {auction.consigner?.phone_number && (
-              <p className="text-sm text-gray-600">
-                {auction.consigner.phone_number}
-              </p>
-            )}
-          </div>
-        </div>
+            {/* Auction Timing */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center mb-6">
+                <Clock className="w-5 h-5 mr-2 text-blue-600" />
+                Timing Information
+              </h2>
 
-        {/* Winner Info */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 lg:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Winner</h3>
-            <Trophy className="w-5 h-5 text-yellow-600" />
-          </div>
-          {auction.winner ? (
-            <div className="space-y-2">
-              <p className="font-medium text-green-700">
-                {getUserDisplayName(auction.winner)}
-              </p>
-              <p className="text-sm text-gray-500">
-                @{auction.winner.username}
-              </p>
-              {auction.winner.vehicle_number && (
-                <p className="text-sm text-gray-600">
-                  {auction.winner.vehicle_number}
-                </p>
-              )}
-              {auction.winner.phone_number && (
-                <p className="text-sm text-gray-600">
-                  {auction.winner.phone_number}
-                </p>
-              )}
-              {auction.winning_bid && (
-                <p className="text-lg font-bold text-green-700">
-                  ₹{parseFloat(auction.winning_bid.amount).toLocaleString()}
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-gray-400">No winner yet</p>
-          )}
-        </div>
-
-        {/* Bid Statistics */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 lg:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Bid Stats</h3>
-            <DollarSign className="w-5 h-5 text-green-600" />
-          </div>
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-600">Total Bids</p>
-              <p className="text-2xl font-bold text-gray-900">{bids.length}</p>
-            </div>
-            {bids.length > 0 && (
-              <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <p className="text-sm text-gray-600">Lowest Bid</p>
-                  <p className="text-lg font-semibold text-green-700">
-                    ₹
-                    {Math.min(
-                      ...bids.map((b) => parseFloat(b.amount))
-                    ).toLocaleString()}
-                  </p>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Created</label>
+                  <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                    <Calendar className="w-4 h-4 text-blue-600 mr-2" />
+                    <span className="text-gray-900">
+                      {new Date(auction.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
+
                 <div>
-                  <p className="text-sm text-gray-600">Highest Bid</p>
-                  <p className="text-lg font-semibold text-red-700">
-                    ₹
-                    {Math.max(
-                      ...bids.map((b) => parseFloat(b.amount))
-                    ).toLocaleString()}
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Job Details */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 lg:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Job Details</h3>
-            <Package className="w-5 h-5 text-blue-600" />
-          </div>
-          <div className="space-y-2">
-            {auction.pickup_location && (
-              <div>
-                <p className="text-sm text-gray-600">Pickup</p>
-                <p className="text-sm font-medium text-gray-900 flex items-center">
-                  <MapPin className="w-3 h-3 mr-1" />
-                  {auction.pickup_location}
-                </p>
-              </div>
-            )}
-            {auction.dropoff_location && (
-              <div>
-                <p className="text-sm text-gray-600">Drop-off</p>
-                <p className="text-sm font-medium text-gray-900 flex items-center">
-                  <MapPin className="w-3 h-3 mr-1" />
-                  {auction.dropoff_location}
-                </p>
-              </div>
-            )}
-            {auction.estimated_distance && (
-              <div>
-                <p className="text-sm text-gray-600">Distance</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {auction.estimated_distance} km
-                </p>
-              </div>
-            )}
-            {auction.weight && (
-              <div>
-                <p className="text-sm text-gray-600">Weight</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {auction.weight} kg
-                </p>
-              </div>
-            )}
-            {auction.cargo_type && (
-              <div>
-                <p className="text-sm text-gray-600">Cargo Type</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {auction.cargo_type}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Bid History */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 lg:p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-            <DollarSign className="w-5 h-5 mr-2" />
-            Bid History ({bids.length} bids)
-          </h2>
-        </div>
-
-        {bids.length > 0 ? (
-          <>
-            {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                      Bidder
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                      Amount
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                      Vehicle
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                      Phone
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                      Time
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                      Trend
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                      Status
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bids.map((bid, index) => (
-                    <tr
-                      key={bid.id}
-                      className="border-b border-gray-100 hover:bg-gray-50"
-                    >
-                      <td className="py-4 px-4">
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {getUserDisplayName(bid.user)}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            @{bid.user?.username}
-                          </p>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Auction Ends</label>
+                  {editingAuction ? (
+                    <input
+                      type="datetime-local"
+                      value={editedData.endTime ? new Date(editedData.endTime).toISOString().slice(0, 16) : ''}
+                      onChange={(e) => setEditedData({ ...editedData, endTime: new Date(e.target.value).toISOString() })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      min={new Date().toISOString().slice(0, 16)}
+                    />
+                  ) : (
+                    <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                      <Clock className="w-4 h-4 text-orange-600 mr-2" />
+                      <div>
+                        <div className="text-gray-900">
+                          {new Date(auction.end_time).toLocaleDateString()}
                         </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="text-lg font-semibold text-gray-900">
-                          ₹{parseFloat(bid.amount).toLocaleString()}
-                        </p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="text-sm">
-                          <p className="text-gray-900">
-                            {formatVehicleType(bid.user?.vehicle_type || "")}
-                          </p>
-                          <p className="text-gray-500">
-                            {bid.user?.vehicle_number}
-                          </p>
+                        <div className="text-sm text-gray-600">
+                          {new Date(auction.end_time).toLocaleTimeString()}
                         </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="text-sm">
-                          {bid.user?.phone_number ? (
-                            <p className="text-gray-900">
-                              {bid.user.phone_number}
-                            </p>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="text-sm">
-                          <p className="text-gray-900">
-                            {new Date(bid.created_at).toLocaleDateString()}
-                          </p>
-                          <p className="text-gray-500">
-                            {new Date(bid.created_at).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">{getBidTrend(bid, index)}</td>
-                      <td className="py-4 px-4">
-                        {auction.winner_id === bid.user_id ? (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium flex items-center w-fit">
-                            <Trophy className="w-3 h-3 mr-1" />
-                            Winner
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-4">
-                        <button
-                          onClick={() => setShowDeleteConfirm(bid.id)}
-                          className="inline-flex items-center px-2 py-1 text-sm bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-colors"
-                          title="Delete Bid"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="lg:hidden space-y-4">
-              {bids.map((bid, index) => (
-                <div
-                  key={bid.id}
-                  className="border border-gray-200 rounded-lg p-4"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {getUserDisplayName(bid.user)}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        @{bid.user?.username}
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {getBidTrend(bid, index)}
-                      {auction.winner_id === bid.user_id && (
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium flex items-center">
-                          <Trophy className="w-3 h-3 mr-1" />
-                          Winner
-                        </span>
-                      )}
-                      <button
-                        onClick={() => setShowDeleteConfirm(bid.id)}
-                        className="inline-flex items-center px-2 py-1 text-sm bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-colors"
-                        title="Delete Bid"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">Amount</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        ₹{parseFloat(bid.amount).toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Vehicle</p>
-                      <p className="text-gray-900">
-                        {formatVehicleType(bid.user?.vehicle_type || "")}
-                      </p>
-                      <p className="text-gray-500 text-xs">
-                        {bid.user?.vehicle_number}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {bid.user?.phone_number && (
-                    <div className="mt-3 text-sm">
-                      <p className="text-gray-600">Phone</p>
-                      <p className="text-gray-900">{bid.user.phone_number}</p>
+                      </div>
                     </div>
                   )}
+                </div>
 
-                  <div className="border-t border-gray-200 pt-3 mt-3">
-                    <div className="text-xs text-gray-600">
-                      <p>
-                        {new Date(bid.created_at).toLocaleDateString()} at{" "}
-                        {new Date(bid.created_at).toLocaleTimeString()}
-                      </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Job Date</label>
+                  {editingAuction ? (
+                    <input
+                      type="date"
+                      value={editedData.consignmentDate ? new Date(editedData.consignmentDate).toISOString().slice(0, 10) : ''}
+                      onChange={(e) => setEditedData({ ...editedData, consignmentDate: new Date(e.target.value).toISOString() })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      min={new Date().toISOString().slice(0, 10)}
+                    />
+                  ) : (
+                    <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                      <Truck className="w-4 h-4 text-green-600 mr-2" />
+                      <span className="text-gray-900">
+                        {new Date(auction.consignment_date).toLocaleDateString()}
+                      </span>
                     </div>
+                  )}
+                </div>
+              </div>
+
+              {editingAuction && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-4">Quick Duration Settings</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {[
+                      { label: '5 min', minutes: 5 },
+                      { label: '15 min', minutes: 15 },
+                      { label: '30 min', minutes: 30 },
+                      { label: '1 hour', minutes: 60 },
+                      { label: '2 hours', minutes: 120 },
+                      { label: '4 hours', minutes: 240 },
+                      { label: '8 hours', minutes: 480 },
+                      { label: '1 day', minutes: 1440 },
+                      { label: '2 days', minutes: 2880 },
+                      { label: '3 days', minutes: 4320 },
+                      { label: '1 week', minutes: 10080 },
+                      { label: 'Custom', minutes: 0 }
+                    ].map((option) => {
+                      const currentDuration = Math.round((new Date(editedData.endTime).getTime() - new Date().getTime()) / (1000 * 60));
+                      const isSelected = option.minutes === 0 ? false : Math.abs(currentDuration - option.minutes) < 5;
+
+                      return (
+                        <button
+                          key={option.label}
+                          onClick={() => {
+                            if (option.minutes > 0) {
+                              const newEndTime = new Date(Date.now() + option.minutes * 60000);
+                              setEditedData({ ...editedData, endTime: newEndTime.toISOString() });
+                            }
+                          }}
+                          className={`px-3 py-2 text-sm rounded-lg border-2 transition-all ${
+                            isSelected
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                          }`}
+                          disabled={option.minutes === 0}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-4 text-sm text-gray-600">
+                    <span className="font-medium">Current duration: </span>
+                    {(() => {
+                      if (!editedData.endTime) return 'Not set';
+                      const duration = Math.round((new Date(editedData.endTime).getTime() - new Date().getTime()) / (1000 * 60));
+                      if (duration < 0) return 'Auction has ended';
+                      if (duration < 60) return `${duration} minutes`;
+                      if (duration < 1440) {
+                        const hours = Math.floor(duration / 60);
+                        const minutes = duration % 60;
+                        return minutes > 0 ? `${hours}h ${minutes}m` : `${hours} hours`;
+                      }
+                      const days = Math.floor(duration / 1440);
+                      const hours = Math.floor((duration % 1440) / 60);
+                      return hours > 0 ? `${days}d ${hours}h` : `${days} days`;
+                    })()}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-          </>
-        ) : (
-          <div className="text-center py-12">
-            <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No bids placed yet</p>
           </div>
-        )}
+
+          {/* Right Column - People & Bids */}
+          <div className="space-y-6">
+            {/* Consigner Info */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                <User className="w-5 h-5 mr-2 text-blue-600" />
+                Consigner
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <div className="font-medium text-gray-900">
+                    {getUserDisplayName(auction.consigner)}
+                  </div>
+                  <div className="text-sm text-gray-500">@{auction.consigner?.username}</div>
+                </div>
+                {auction.consigner?.email && (
+                  <div className="text-sm text-gray-600">{auction.consigner.email}</div>
+                )}
+                {auction.consigner?.phone_number && (
+                  <div className="text-sm text-gray-600">{auction.consigner.phone_number}</div>
+                )}
+              </div>
+            </div>
+
+            {/* Winner Info */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                <Trophy className="w-5 h-5 mr-2 text-yellow-600" />
+                Winner
+              </h3>
+              {auction.winner ? (
+                <div className="space-y-3">
+                  <div>
+                    <div className="font-medium text-green-700">
+                      {getUserDisplayName(auction.winner)}
+                    </div>
+                    <div className="text-sm text-gray-500">@{auction.winner.username}</div>
+                  </div>
+                  {auction.winner.vehicle_number && (
+                    <div className="text-sm text-gray-600">{auction.winner.vehicle_number}</div>
+                  )}
+                  {auction.winner.phone_number && (
+                    <div className="text-sm text-gray-600">{auction.winner.phone_number}</div>
+                  )}
+                  {auction.winning_bid && (
+                    <div className="text-xl font-bold text-green-700">
+                      ₹{parseFloat(auction.winning_bid.amount).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-400">No winner yet</p>
+              )}
+            </div>
+
+            {/* Bid Statistics */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                <DollarSign className="w-5 h-5 mr-2 text-green-600" />
+                Bid Statistics
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Total Bids</span>
+                  <span className="text-2xl font-bold text-gray-900">{auction.bid_count || bids.length}</span>
+                </div>
+                {(auction.lowest_bid_amount || bids.length > 0) && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Lowest Bid</span>
+                      <span className="text-lg font-semibold text-green-700">
+                        ₹{auction.lowest_bid_amount
+                          ? parseFloat(auction.lowest_bid_amount.toString()).toLocaleString()
+                          : Math.min(...bids.map((b) => parseFloat(b.amount))).toLocaleString()
+                        }
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Highest Bid</span>
+                      <span className="text-lg font-semibold text-red-700">
+                        ₹{auction.highest_bid_amount
+                          ? parseFloat(auction.highest_bid_amount.toString()).toLocaleString()
+                          : Math.max(...bids.map((b) => parseFloat(b.amount))).toLocaleString()
+                        }
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bid History Section */}
+        <div className="mt-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                <Users className="w-5 h-5 mr-2 text-blue-600" />
+                Bid History ({bids.length} bids)
+              </h2>
+            </div>
+
+            {bids.length > 0 ? (
+              <div className="space-y-4">
+                {bids.map((bid, index) => (
+                  <div
+                    key={bid.id}
+                    className={`p-4 border-2 rounded-xl transition-all ${
+                      auction.winner_id === bid.user_id
+                        ? 'border-green-200 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-gray-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {getUserDisplayName(bid.user)}
+                          </div>
+                          <div className="text-sm text-gray-500">@{bid.user?.username}</div>
+                          {bid.user?.vehicle_number && (
+                            <div className="text-sm text-gray-600">{bid.user.vehicle_number}</div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="flex items-center space-x-3">
+                          {editingBid === bid.id ? (
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                value={editedBidAmount}
+                                onChange={(e) => setEditedBidAmount(e.target.value)}
+                                className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+                                min="1"
+                                step="1"
+                              />
+                              <button
+                                onClick={() => saveBidAmount(bid.id)}
+                                disabled={updatingBid}
+                                className="inline-flex items-center px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={cancelEditingBid}
+                                className="inline-flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-gray-900">
+                                  ₹{parseFloat(bid.amount).toLocaleString()}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {new Date(bid.created_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                {auction.winner_id === bid.user_id && (
+                                  <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium flex items-center">
+                                    <Trophy className="w-3 h-3 mr-1" />
+                                    Winner
+                                  </div>
+                                )}
+                                <button
+                                  onClick={() => startEditingBid(bid.id, bid.amount)}
+                                  className="inline-flex items-center px-2 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                                  title="Edit Amount"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => setShowDeleteConfirm(bid.id)}
+                                  className="inline-flex items-center px-2 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                                  title="Delete Bid"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No bids placed yet</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
