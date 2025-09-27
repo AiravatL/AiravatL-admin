@@ -60,19 +60,23 @@ export async function PUT(request: NextRequest) {
 
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
-        // Special validation for date fields
+        // Special validation for date fields - compare dates only for admin flexibility
         if (key === 'consignment_date' || key === 'end_time') {
           const dateValue = new Date(value as string);
           const now = new Date();
 
-          if (key === 'consignment_date' && dateValue < now) {
+          // Compare dates only (not times) for past validation to allow admin flexibility
+          const dateOnly = new Date(dateValue.getFullYear(), dateValue.getMonth(), dateValue.getDate());
+          const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+          if (key === 'consignment_date' && dateOnly < todayOnly) {
             return NextResponse.json(
               { error: 'Consignment date cannot be in the past' },
               { status: 400 }
             );
           }
 
-          if (key === 'end_time' && dateValue < now) {
+          if (key === 'end_time' && dateOnly < todayOnly) {
             return NextResponse.json(
               { error: 'Auction end time cannot be in the past' },
               { status: 400 }
@@ -89,13 +93,17 @@ export async function PUT(request: NextRequest) {
     }
 
     // Cross-field validation for end_time vs consignment_date
+    // Compare only dates, not times - auction should end before consignment date
     if (validUpdates.end_time && validUpdates.consignment_date) {
       const endTime = new Date(validUpdates.end_time);
       const consignmentDate = new Date(validUpdates.consignment_date);
 
-      if (endTime > consignmentDate) {
+      const endDate = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate());
+      const consignmentDateOnly = new Date(consignmentDate.getFullYear(), consignmentDate.getMonth(), consignmentDate.getDate());
+
+      if (endDate > consignmentDateOnly) {
         return NextResponse.json(
-          { error: 'Auction must end before the consignment date' },
+          { error: 'Auction must end before or on the consignment date' },
           { status: 400 }
         );
       }
@@ -103,9 +111,12 @@ export async function PUT(request: NextRequest) {
       const endTime = new Date(validUpdates.end_time);
       const consignmentDate = new Date(currentAuction.consignment_date);
 
-      if (endTime > consignmentDate) {
+      const endDate = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate());
+      const consignmentDateOnly = new Date(consignmentDate.getFullYear(), consignmentDate.getMonth(), consignmentDate.getDate());
+
+      if (endDate > consignmentDateOnly) {
         return NextResponse.json(
-          { error: 'Auction must end before the consignment date' },
+          { error: 'Auction must end before or on the consignment date' },
           { status: 400 }
         );
       }
@@ -113,9 +124,12 @@ export async function PUT(request: NextRequest) {
       const endTime = new Date(currentAuction.end_time);
       const consignmentDate = new Date(validUpdates.consignment_date);
 
-      if (endTime > consignmentDate) {
+      const endDate = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate());
+      const consignmentDateOnly = new Date(consignmentDate.getFullYear(), consignmentDate.getMonth(), consignmentDate.getDate());
+
+      if (endDate >= consignmentDateOnly) {
         return NextResponse.json(
-          { error: 'Consignment date must be after the auction end time' },
+          { error: 'Consignment date must be after the auction end date' },
           { status: 400 }
         );
       }

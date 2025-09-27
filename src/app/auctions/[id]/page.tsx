@@ -418,21 +418,27 @@ export default function AuctionDetailPage() {
       errors.push('Please enter a valid weight');
     }
 
-    // Validate dates
+    // Validate dates - compare dates only for admin flexibility
     const consignmentDate = new Date(editedData.consignmentDate);
     const endTime = new Date(editedData.endTime);
     const now = new Date();
 
-    if (consignmentDate < now) {
+    // Compare dates only (not times) for past validation to allow admin flexibility
+    const consignmentDateOnly = new Date(consignmentDate.getFullYear(), consignmentDate.getMonth(), consignmentDate.getDate());
+    const endDateOnly = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate());
+    const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (consignmentDateOnly < todayOnly) {
       errors.push('Consignment date cannot be in the past');
     }
 
-    if (endTime < now) {
+    if (endDateOnly < todayOnly) {
       errors.push('Auction end time cannot be in the past');
     }
 
-    if (endTime > consignmentDate) {
-      errors.push('Auction must end before the consignment date');
+    // Compare only dates, not times - auction should end before or on consignment date
+    if (endDateOnly > consignmentDateOnly) {
+      errors.push('Auction must end before or on the consignment date');
     }
 
     if (errors.length > 0) {
