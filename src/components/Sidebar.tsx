@@ -8,6 +8,7 @@ import {
   Users,
   Truck,
   Gavel,
+  Plus,
   BarChart3,
   LogOut,
   Menu,
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Consigners", href: "/consigners", icon: Users },
   { name: "Drivers", href: "/drivers", icon: Truck },
   { name: "Auctions", href: "/auctions", icon: Gavel },
+  { name: "Create Auction", href: "/create-auction", icon: Plus },
 ];
 
 export default function Sidebar() {

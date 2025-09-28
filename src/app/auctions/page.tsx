@@ -85,6 +85,13 @@ export default function AuctionsPage() {
   >("created");
   const [error, setError] = useState<string | null>(null);
   const subscriptionRef = useRef<any>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+  const [isRealTimeConnected, setIsRealTimeConnected] = useState(false);
+  const [backgroundUpdateCount, setBackgroundUpdateCount] = useState(0);
+  const [isPollingActive, setIsPollingActive] = useState(false);
+  const lastActiveTimeRef = useRef<Date>(new Date());
+  const isPageVisibleRef = useRef<boolean>(true);
 
   const vehicleTypes = [
     "three_wheeler",
@@ -99,6 +106,8 @@ export default function AuctionsPage() {
     if (isSupabaseAvailable()) {
       fetchAuctionData();
       setupRealTimeSubscriptions();
+      setupSmartPolling();
+      setupPageVisibilityListener();
     } else {
       setLoading(false);
       // Set demo data when Supabase is not available
@@ -181,10 +190,13 @@ export default function AuctionsPage() {
       setFilteredAuctions([]);
     }
 
-    // Cleanup subscriptions on unmount
+    // Cleanup subscriptions and polling on unmount
     return () => {
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
+      }
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
       }
     };
   }, []);
@@ -193,14 +205,20 @@ export default function AuctionsPage() {
     filterAuctions();
   }, [auctions, searchTerm, statusFilter, vehicleFilter, sortBy]);
 
-  const fetchAuctionData = useCallback(async () => {
+  const fetchAuctionData = useCallback(async (isBackgroundUpdate = false) => {
     try {
-      // Fetch auctions with related data
+      if (isBackgroundUpdate) {
+        setBackgroundUpdateCount(prev => prev + 1);
+      }
+
+      // Fetch auctions with related data - using pre-computed bid statistics for performance
       const { data: auctionsData, error: auctionsError } = await supabase
         .from("auctions")
         .select(
           `
-          *,
+          id, title, description, vehicle_type, start_time, end_time, consignment_date,
+          status, created_by, winner_id, winning_bid_id, created_at, updated_at,
+          bid_count, lowest_bid_amount, highest_bid_amount,
           profiles!auctions_created_by_fkey (
             id, username, first_name, last_name, email, phone_number
           ),
@@ -213,42 +231,16 @@ export default function AuctionsPage() {
 
       if (auctionsError) throw auctionsError;
 
-      // Fetch bid counts for each auction
-      const auctionsWithBids = await Promise.all(
-        auctionsData.map(async (auction) => {
-          const { data: bidsData, error: bidsError } = await supabase
-            .from("auction_bids")
-            .select("id, amount, user_id, created_at")
-            .eq("auction_id", auction.id)
-            .order("amount", { ascending: true });
-
-          if (bidsError) {
-            console.error(
-              `Error fetching bids for auction ${auction.id}:`,
-              bidsError
-            );
-            return { ...auction, bids: [], bid_count: 0 };
-          }
-
-          return {
-            ...auction,
-            bids: bidsData,
-            bid_count: bidsData.length,
-            lowest_bid_amount:
-              bidsData.length > 0
-                ? Math.min(...bidsData.map((b) => parseFloat(b.amount)))
-                : null,
-            highest_bid_amount:
-              bidsData.length > 0
-                ? Math.max(...bidsData.map((b) => parseFloat(b.amount)))
-                : null,
-            consigner: auction.profiles,
-            winner: auction.winner,
-          };
-        })
-      );
+      // No need for additional queries - bid stats are already computed in the database
+      // This eliminates the N+1 query problem that was causing slow loading
+      const auctionsWithBids = auctionsData.map(auction => ({
+        ...auction,
+        consigner: auction.profiles,
+        winner: auction.winner,
+      }));
 
       setAuctions(auctionsWithBids);
+      setLastUpdateTime(new Date());
 
       // Calculate statistics
       const totalAuctions = auctionsWithBids.length;
@@ -300,6 +292,7 @@ export default function AuctionsPage() {
     } catch (err: any) {
       console.error("Error fetching auction data:", err);
       setError(err.message);
+      setIsRealTimeConnected(false);
     } finally {
       setLoading(false);
     }
@@ -308,9 +301,9 @@ export default function AuctionsPage() {
   const setupRealTimeSubscriptions = useCallback(() => {
     console.log("Setting up real-time subscriptions for auctions");
 
-    // Create a channel for all auctions and bids
+    // Create a channel for critical real-time updates only
     const channel = supabase
-      .channel('auctions_updates')
+      .channel('critical_auctions_updates')
       .on(
         'postgres_changes',
         {
@@ -319,29 +312,110 @@ export default function AuctionsPage() {
           table: 'auctions',
         },
         (payload) => {
-          console.log('Auction change detected:', payload);
-          // Refresh all auction data when any auction changes
-          fetchAuctionData();
+          console.log('Critical auction change detected:', payload);
+          // Only refresh for important changes (status updates, winner changes)
+          if (payload.eventType === 'UPDATE' &&
+              (payload.new?.status !== payload.old?.status ||
+               payload.new?.winner_id !== payload.old?.winner_id)) {
+            fetchAuctionData(true);
+          } else if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+            fetchAuctionData(true);
+          }
         }
       )
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'auction_bids',
         },
         (payload) => {
-          console.log('Bid change detected:', payload);
-          // Refresh auction data when bids change (affects stats)
-          fetchAuctionData();
+          console.log('New bid detected:', payload);
+          // Only refresh for new bids, not all bid changes
+          fetchAuctionData(true);
         }
       )
       .subscribe((status) => {
-        console.log('Auctions subscription status:', status);
+        console.log('Real-time subscription status:', status);
+        setIsRealTimeConnected(status === 'SUBSCRIBED');
       });
 
     subscriptionRef.current = channel;
+  }, [fetchAuctionData]);
+
+  const setupSmartPolling = useCallback(() => {
+    console.log("Setting up smart polling for auctions");
+
+    const startPolling = () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+
+      // Dynamic polling interval based on page activity
+      const getPollingInterval = () => {
+        const now = new Date();
+        const timeSinceLastActive = now.getTime() - lastActiveTimeRef.current.getTime();
+
+        // If page is not visible, poll less frequently
+        if (!isPageVisibleRef.current) {
+          return 300000; // 5 minutes when not visible
+        }
+
+        // If user has been inactive for more than 5 minutes, reduce polling
+        if (timeSinceLastActive > 300000) {
+          return 120000; // 2 minutes for inactive users
+        }
+
+        // Active users get frequent updates
+        return 30000; // 30 seconds for active users
+      };
+
+      const poll = () => {
+        if (isSupabaseAvailable() && isPageVisibleRef.current) {
+          fetchAuctionData(true);
+        }
+
+        // Reset timer with new interval
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+        }
+        pollingRef.current = setTimeout(poll, getPollingInterval());
+      };
+
+      pollingRef.current = setTimeout(poll, getPollingInterval());
+      setIsPollingActive(true);
+    };
+
+    startPolling();
+  }, [fetchAuctionData]);
+
+  const setupPageVisibilityListener = useCallback(() => {
+    const handleVisibilityChange = () => {
+      isPageVisibleRef.current = !document.hidden;
+
+      if (isPageVisibleRef.current) {
+        // Page became visible - update data immediately and reset active time
+        lastActiveTimeRef.current = new Date();
+        fetchAuctionData(true);
+      }
+    };
+
+    const handleUserActivity = () => {
+      lastActiveTimeRef.current = new Date();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('mousedown', handleUserActivity);
+    document.addEventListener('keydown', handleUserActivity);
+    document.addEventListener('scroll', handleUserActivity);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('mousedown', handleUserActivity);
+      document.removeEventListener('keydown', handleUserActivity);
+      document.removeEventListener('scroll', handleUserActivity);
+    };
   }, [fetchAuctionData]);
 
   const filterAuctions = () => {
@@ -453,12 +527,33 @@ export default function AuctionsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Auctions</h1>
-        <p className="text-gray-600 mt-2">
-          Monitor and manage auction activities
-        </p>
+      {/* Header with Real-time Status */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Auctions</h1>
+          <p className="text-gray-600 mt-2">
+            Monitor and manage auction activities
+          </p>
+        </div>
+        <div className="flex items-center space-x-4 text-sm text-gray-500">
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${
+              isRealTimeConnected ? 'bg-green-500' : 'bg-yellow-500'
+            }`} />
+            <span>
+              {isRealTimeConnected ? 'Real-time Connected' : 'Polling Mode'}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Activity className="w-4 h-4" />
+            <span>Updated: {lastUpdateTime.toLocaleTimeString()}</span>
+          </div>
+          {backgroundUpdateCount > 0 && (
+            <div className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+              {backgroundUpdateCount} background updates
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Statistics Cards */}

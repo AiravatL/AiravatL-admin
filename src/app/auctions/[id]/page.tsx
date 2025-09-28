@@ -147,6 +147,13 @@ export default function AuctionDetailPage() {
   const [deletingBid, setDeletingBid] = useState(false);
   const [realtimeStatus, setRealtimeStatus] = useState<string>('connecting');
   const subscriptionRef = useRef<any>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+  const [isRealTimeConnected, setIsRealTimeConnected] = useState(false);
+  const [backgroundUpdateCount, setBackgroundUpdateCount] = useState(0);
+  const [isPollingActive, setIsPollingActive] = useState(false);
+  const lastActiveTimeRef = useRef<Date>(new Date());
+  const isPageVisibleRef = useRef<boolean>(true);
 
   // Edit states
   const [editingAuction, setEditingAuction] = useState(false);
@@ -229,6 +236,8 @@ export default function AuctionDetailPage() {
     if (auctionId && isSupabaseAvailable()) {
       fetchAuctionDetails();
       setupRealTimeSubscriptions();
+      setupSmartPolling();
+      setupPageVisibilityListener();
     } else if (auctionId && !isSupabaseAvailable()) {
       setLoading(false);
       setError("Supabase configuration not available");
@@ -237,6 +246,9 @@ export default function AuctionDetailPage() {
     return () => {
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
+      }
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
       }
     };
   }, [auctionId]);
@@ -249,10 +261,15 @@ export default function AuctionDetailPage() {
     }
   }, [auction, parseAuctionData]);
 
-  const fetchAuctionDetails = useCallback(async () => {
+  const fetchAuctionDetails = useCallback(async (isBackgroundUpdate = false) => {
     if (!auctionId) return;
 
     try {
+      if (isBackgroundUpdate) {
+        setBackgroundUpdateCount(prev => prev + 1);
+      } else {
+        setLoading(true);
+      }
       const [auctionResult, bidsResult] = await Promise.all([
         supabase
           .from("auctions")
@@ -277,7 +294,7 @@ export default function AuctionDetailPage() {
         supabase
           .from("auction_bids")
           .select(`
-            *,
+            id, auction_id, user_id, amount, is_winning_bid, created_at,
             profiles!auction_bids_user_id_fkey (
               id, username, first_name, last_name, vehicle_number, vehicle_type, phone_number
             )
@@ -304,20 +321,26 @@ export default function AuctionDetailPage() {
       });
 
       setBids(bidsData.map((bid) => ({ ...bid, user: bid.profiles || {} })));
+      setLastUpdateTime(new Date());
 
     } catch (err: any) {
       console.error("Error fetching auction details:", err);
       setError(err.message);
+      setIsRealTimeConnected(false);
     } finally {
-      setLoading(false);
+      if (!isBackgroundUpdate) {
+        setLoading(false);
+      }
     }
   }, [auctionId]);
 
   const setupRealTimeSubscriptions = useCallback(() => {
     if (!auctionId) return;
 
+    console.log(`Setting up real-time subscriptions for auction ${auctionId}`);
+
     const channel = supabase
-      .channel(`auction_${auctionId}`)
+      .channel(`critical_auction_${auctionId}`)
       .on(
         'postgres_changes',
         {
@@ -326,7 +349,10 @@ export default function AuctionDetailPage() {
           table: 'auction_bids',
           filter: `auction_id=eq.${auctionId}`,
         },
-        () => fetchAuctionDetails()
+        (payload) => {
+          console.log('Bid change detected for auction:', payload);
+          fetchAuctionDetails(true);
+        }
       )
       .on(
         'postgres_changes',
@@ -336,12 +362,107 @@ export default function AuctionDetailPage() {
           table: 'auctions',
           filter: `id=eq.${auctionId}`,
         },
-        () => fetchAuctionDetails()
+        (payload) => {
+          console.log('Auction change detected:', payload);
+          // Only refresh for important changes (status, winner, timing)
+          if (payload.new?.status !== payload.old?.status ||
+              payload.new?.winner_id !== payload.old?.winner_id ||
+              payload.new?.end_time !== payload.old?.end_time) {
+            fetchAuctionDetails(true);
+          }
+        }
       )
-      .subscribe((status) => setRealtimeStatus(status));
+      .subscribe((status) => {
+        console.log('Auction detail subscription status:', status);
+        setRealtimeStatus(status);
+        setIsRealTimeConnected(status === 'SUBSCRIBED');
+      });
 
     subscriptionRef.current = channel;
   }, [auctionId, fetchAuctionDetails]);
+
+  const setupSmartPolling = useCallback(() => {
+    if (!auctionId) return;
+
+    console.log(`Setting up smart polling for auction ${auctionId}`);
+
+    const startPolling = () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+
+      // Dynamic polling interval based on auction activity and page visibility
+      const getPollingInterval = () => {
+        const now = new Date();
+        const timeSinceLastActive = now.getTime() - lastActiveTimeRef.current.getTime();
+
+        // If page is not visible, poll less frequently
+        if (!isPageVisibleRef.current) {
+          return 300000; // 5 minutes when not visible
+        }
+
+        // For auction detail page, poll more frequently since users are actively monitoring
+        if (auction?.status === 'active') {
+          // Active auction - more frequent updates
+          if (timeSinceLastActive > 300000) {
+            return 60000; // 1 minute for inactive users on active auctions
+          }
+          return 15000; // 15 seconds for active users on active auctions
+        } else {
+          // Completed/cancelled auctions - less frequent updates
+          if (timeSinceLastActive > 300000) {
+            return 300000; // 5 minutes for inactive users
+          }
+          return 60000; // 1 minute for active users on inactive auctions
+        }
+      };
+
+      const poll = () => {
+        if (isSupabaseAvailable() && isPageVisibleRef.current && auctionId) {
+          fetchAuctionDetails(true);
+        }
+
+        // Reset timer with new interval
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+        }
+        pollingRef.current = setTimeout(poll, getPollingInterval());
+      };
+
+      pollingRef.current = setTimeout(poll, getPollingInterval());
+      setIsPollingActive(true);
+    };
+
+    startPolling();
+  }, [auctionId, auction?.status, fetchAuctionDetails]);
+
+  const setupPageVisibilityListener = useCallback(() => {
+    const handleVisibilityChange = () => {
+      isPageVisibleRef.current = !document.hidden;
+
+      if (isPageVisibleRef.current) {
+        // Page became visible - update data immediately and reset active time
+        lastActiveTimeRef.current = new Date();
+        fetchAuctionDetails(true);
+      }
+    };
+
+    const handleUserActivity = () => {
+      lastActiveTimeRef.current = new Date();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('mousedown', handleUserActivity);
+    document.addEventListener('keydown', handleUserActivity);
+    document.addEventListener('scroll', handleUserActivity);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('mousedown', handleUserActivity);
+      document.removeEventListener('keydown', handleUserActivity);
+      document.removeEventListener('scroll', handleUserActivity);
+    };
+  }, [fetchAuctionDetails]);
 
   const formatVehicleType = (type: string) => {
     const vehicleType = VEHICLE_TYPES.find(v => v.id === type);
@@ -710,12 +831,35 @@ export default function AuctionDetailPage() {
             Back to Auctions
           </Link>
 
-          <div className="flex items-center space-x-3">
-            {getStatusIcon(auction.status)}
-            <span className={getStatusBadge(auction.status)}>
-              {auction.status?.charAt(0).toUpperCase() + auction.status?.slice(1)}
-            </span>
-            <button
+          <div className="flex items-center space-x-6">
+            {/* Real-time Status Indicators */}
+            <div className="flex items-center space-x-4 text-sm text-gray-500">
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  isRealTimeConnected ? 'bg-green-500' : 'bg-yellow-500'
+                }`} />
+                <span>
+                  {isRealTimeConnected ? 'Real-time Connected' : 'Polling Mode'}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Activity className="w-4 h-4" />
+                <span>Updated: {lastUpdateTime.toLocaleTimeString()}</span>
+              </div>
+              {backgroundUpdateCount > 0 && (
+                <div className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                  {backgroundUpdateCount} background updates
+                </div>
+              )}
+            </div>
+
+            {/* Auction Status and Controls */}
+            <div className="flex items-center space-x-3">
+              {getStatusIcon(auction.status)}
+              <span className={getStatusBadge(auction.status)}>
+                {auction.status?.charAt(0).toUpperCase() + auction.status?.slice(1)}
+              </span>
+              <button
               onClick={() => setShowStatusManager(true)}
               className="flex items-center px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
@@ -748,17 +892,6 @@ export default function AuctionDetailPage() {
                 {updatingAuction ? 'Saving...' : 'Save Changes'}
               </button>
             )}
-
-            {/* Real-time indicator */}
-            <div className="flex items-center text-xs">
-              <div className={`w-2 h-2 rounded-full mr-2 ${
-                realtimeStatus === 'SUBSCRIBED' ? 'bg-green-500' :
-                realtimeStatus === 'CHANNEL_ERROR' ? 'bg-red-500' : 'bg-yellow-500'
-              }`}></div>
-              <span className="text-gray-500">
-                {realtimeStatus === 'SUBSCRIBED' ? 'Live' :
-                 realtimeStatus === 'CHANNEL_ERROR' ? 'Offline' : 'Connecting'}
-              </span>
             </div>
           </div>
         </div>
