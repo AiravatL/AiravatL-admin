@@ -27,6 +27,7 @@ import {
   BarChart3,
   Filter,
   Search,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -96,6 +97,10 @@ export default function ConsignerDetailPage() {
   // Profile editing states
   const [editingProfile, setEditingProfile] = useState<ConsignerProfile | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Delete states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (consignerId && isSupabaseAvailable()) {
@@ -360,6 +365,31 @@ export default function ConsignerDetailPage() {
     setShowEditProfile(false);
   };
 
+  const handleDeleteConsigner = async () => {
+    if (!consigner) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/admin/delete-consigner?id=${consigner.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete consigner");
+      }
+
+      // Redirect to consigners list after successful deletion
+      router.push("/consigners");
+    } catch (err: any) {
+      console.error("Error deleting consigner:", err);
+      setError("Failed to delete consigner: " + err.message);
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -443,6 +473,13 @@ export default function ConsignerDetailPage() {
           >
             <Edit3 className="w-4 h-4 mr-1" />
             Edit Profile
+          </button>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center px-3 py-1 text-sm bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-colors"
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Delete Consigner
           </button>
         </div>
       </div>
@@ -1037,6 +1074,62 @@ export default function ConsignerDetailPage() {
               >
                 <Settings className="w-4 h-4 mr-1" />
                 {savingProfile ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">
+              Delete Consigner
+            </h2>
+            <p className="text-gray-600 text-center mb-6">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{getUserDisplayName(consigner)}</span>?
+              This will permanently delete the consigner and all related data including:
+            </p>
+            <ul className="text-sm text-gray-600 mb-6 space-y-1 list-disc list-inside">
+              <li>All auctions created by this consigner</li>
+              <li>All bids received on their auctions</li>
+              <li>All notifications and audit logs</li>
+              <li>Profile information</li>
+            </ul>
+            <p className="text-red-600 text-sm font-medium text-center mb-6">
+              This action cannot be undone!
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConsigner}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              >
+                {deleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete Permanently
+                  </>
+                )}
               </button>
             </div>
           </div>

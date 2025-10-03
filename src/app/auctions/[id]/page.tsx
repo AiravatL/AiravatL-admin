@@ -145,6 +145,8 @@ export default function AuctionDetailPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deletingBid, setDeletingBid] = useState(false);
+  const [showDeleteAuctionConfirm, setShowDeleteAuctionConfirm] = useState(false);
+  const [deletingAuction, setDeletingAuction] = useState(false);
   const [realtimeStatus, setRealtimeStatus] = useState<string>('connecting');
   const subscriptionRef = useRef<any>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -720,6 +722,31 @@ export default function AuctionDetailPage() {
     }
   };
 
+  const deleteAuction = async () => {
+    if (!auction) return;
+
+    setDeletingAuction(true);
+    try {
+      const response = await fetch(`/api/admin/delete-auction?id=${auction.id}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete auction');
+      }
+
+      // Redirect to auctions list after successful deletion
+      router.push('/auctions');
+    } catch (err: any) {
+      console.error("Error deleting auction:", err);
+      setError("Failed to delete auction: " + err.message);
+      setDeletingAuction(false);
+      setShowDeleteAuctionConfirm(false);
+    }
+  };
+
   const updateAuctionStatus = async () => {
     if (!auction || selectedStatus === auction.status) return;
 
@@ -892,6 +919,13 @@ export default function AuctionDetailPage() {
                 {updatingAuction ? 'Saving...' : 'Save Changes'}
               </button>
             )}
+            <button
+              onClick={() => setShowDeleteAuctionConfirm(true)}
+              className="flex items-center px-4 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Auction
+            </button>
             </div>
           </div>
         </div>
@@ -1067,6 +1101,62 @@ export default function AuctionDetailPage() {
                 >
                   <Trash2 className="w-4 h-4 mr-1" />
                   {deletingBid ? "Deleting..." : "Delete Bid"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Auction Confirmation Modal */}
+        {showDeleteAuctionConfirm && auction && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">
+                Delete Auction
+              </h2>
+              <p className="text-gray-600 text-center mb-6">
+                Are you sure you want to delete the auction{" "}
+                <span className="font-semibold">"{auction.title}"</span>?
+                This will permanently delete the auction and all related data including:
+              </p>
+              <ul className="text-sm text-gray-600 mb-6 space-y-1 list-disc list-inside">
+                <li>All {bids.length} bid{bids.length !== 1 ? 's' : ''} on this auction</li>
+                <li>All notifications related to this auction</li>
+                <li>All audit logs for this auction</li>
+                <li>Auction details and information</li>
+              </ul>
+              <p className="text-red-600 text-sm font-medium text-center mb-6">
+                This action cannot be undone!
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowDeleteAuctionConfirm(false)}
+                  disabled={deletingAuction}
+                  className="flex-1 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={deleteAuction}
+                  disabled={deletingAuction}
+                  className="flex-1 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                >
+                  {deletingAuction ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete Permanently
+                    </>
+                  )}
                 </button>
               </div>
             </div>
