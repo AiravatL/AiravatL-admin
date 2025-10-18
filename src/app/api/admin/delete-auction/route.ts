@@ -27,7 +27,21 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Step 1: Delete notifications related to this auction
+    // Step 1: Clear winning_bid_id to avoid foreign key constraint when deleting bids
+    const { error: clearWinningBidError } = await supabaseAdmin
+      .from("auctions")
+      .update({ winning_bid_id: null })
+      .eq("id", auctionId);
+
+    if (clearWinningBidError) {
+      console.error("Error clearing winning_bid_id:", clearWinningBidError);
+      return NextResponse.json(
+        { error: "Failed to clear winning bid reference: " + clearWinningBidError.message },
+        { status: 500 }
+      );
+    }
+
+    // Step 2: Delete notifications related to this auction
     const { error: notificationsError } = await supabaseAdmin
       .from("auction_notifications")
       .delete()
@@ -41,7 +55,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Step 2: Delete audit logs related to this auction
+    // Step 3: Delete audit logs related to this auction
     const { error: auditLogsError } = await supabaseAdmin
       .from("auction_audit_logs")
       .delete()
@@ -55,7 +69,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Step 3: Delete all bids for this auction
+    // Step 4: Delete all bids for this auction (now safe because winning_bid_id is cleared)
     const { error: bidsError } = await supabaseAdmin
       .from("auction_bids")
       .delete()
@@ -69,7 +83,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Step 4: Delete the auction itself
+    // Step 5: Delete the auction itself
     const { error: auctionDeleteError } = await supabaseAdmin
       .from("auctions")
       .delete()

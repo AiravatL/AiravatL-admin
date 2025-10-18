@@ -44,7 +44,39 @@ export async function DELETE(request: NextRequest) {
 
     const auctionIds = auctions?.map(a => a.id) || [];
 
-    // Step 2: Delete notifications related to these auctions
+    // Step 2: Clear winner_id and winning_bid_id references in OTHER auctions where this consigner is the winner
+    // This must happen BEFORE we try to delete their own auctions
+    const { error: clearWinnerError } = await supabaseAdmin
+      .from("auctions")
+      .update({ winner_id: null, winning_bid_id: null })
+      .eq("winner_id", consignerId);
+
+    if (clearWinnerError) {
+      console.error("Error clearing winner references:", clearWinnerError);
+      return NextResponse.json(
+        { error: "Failed to clear winner references: " + clearWinnerError.message },
+        { status: 500 }
+      );
+    }
+
+    // Step 3: Clear winner_id and winning_bid_id in auctions created by this consigner
+    // This prevents foreign key constraint errors when we delete the winner profile later
+    if (auctionIds.length > 0) {
+      const { error: clearWinnerInOwnAuctionsError } = await supabaseAdmin
+        .from("auctions")
+        .update({ winner_id: null, winning_bid_id: null })
+        .in("id", auctionIds);
+
+      if (clearWinnerInOwnAuctionsError) {
+        console.error("Error clearing winner in own auctions:", clearWinnerInOwnAuctionsError);
+        return NextResponse.json(
+          { error: "Failed to clear winner in own auctions: " + clearWinnerInOwnAuctionsError.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Step 4: Delete notifications related to these auctions
     if (auctionIds.length > 0) {
       const { error: auctionNotificationsError } = await supabaseAdmin
         .from("auction_notifications")
@@ -60,7 +92,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Step 3: Delete audit logs related to these auctions
+    // Step 5: Delete audit logs related to these auctions
     if (auctionIds.length > 0) {
       const { error: auctionAuditError } = await supabaseAdmin
         .from("auction_audit_logs")
@@ -76,7 +108,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Step 4: Delete bids on these auctions
+    // Step 6: Delete bids on these auctions
     if (auctionIds.length > 0) {
       const { error: bidsError } = await supabaseAdmin
         .from("auction_bids")
@@ -92,7 +124,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Step 5: Delete the auctions
+    // Step 7: Delete the auctions created by this consigner
     if (auctionIds.length > 0) {
       const { error: auctionsDeleteError } = await supabaseAdmin
         .from("auctions")
@@ -108,7 +140,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Step 6: Delete notifications for this user
+    // Step 8: Delete notifications for this user
     const { error: userNotificationsError } = await supabaseAdmin
       .from("auction_notifications")
       .delete()
@@ -122,7 +154,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Step 7: Delete audit logs for this user
+    // Step 9: Delete audit logs for this user
     const { error: userAuditError } = await supabaseAdmin
       .from("auction_audit_logs")
       .delete()
@@ -136,21 +168,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Step 8: Clear winner_id references to this consigner
-    const { error: clearWinnerError } = await supabaseAdmin
-      .from("auctions")
-      .update({ winner_id: null })
-      .eq("winner_id", consignerId);
-
-    if (clearWinnerError) {
-      console.error("Error clearing winner references:", clearWinnerError);
-      return NextResponse.json(
-        { error: "Failed to clear winner references: " + clearWinnerError.message },
-        { status: 500 }
-      );
-    }
-
-    // Step 9: Delete the profile (this allows auth user deletion)
+    // Step 10: Delete the profile (this allows auth user deletion)
     const { error: profileDeleteError } = await supabaseAdmin
       .from("profiles")
       .delete()
@@ -164,7 +182,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Step 10: Finally delete from auth.users
+    // Step 11: Finally delete from auth.users
     const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(
       consignerId
     );
