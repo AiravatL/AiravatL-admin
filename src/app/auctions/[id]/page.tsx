@@ -177,6 +177,8 @@ export default function AuctionDetailPage() {
   const [editingBid, setEditingBid] = useState<string | null>(null);
   const [editedBidAmount, setEditedBidAmount] = useState('');
   const [updatingBid, setUpdatingBid] = useState(false);
+  const [creatingTrip, setCreatingTrip] = useState(false);
+  const [existingTrip, setExistingTrip] = useState<{id: string} | null>(null);
 
   // Parse auction data from title and description
   const parseAuctionData = useCallback((auction: AuctionDetail): ParsedAuctionData => {
@@ -237,6 +239,7 @@ export default function AuctionDetailPage() {
   useEffect(() => {
     if (auctionId && isSupabaseAvailable()) {
       fetchAuctionDetails();
+      checkExistingTrip();
       setupRealTimeSubscriptions();
       setupSmartPolling();
       setupPageVisibilityListener();
@@ -442,10 +445,24 @@ export default function AuctionDetailPage() {
     const handleVisibilityChange = () => {
       isPageVisibleRef.current = !document.hidden;
 
-      if (isPageVisibleRef.current) {
+      if (isPageVisibleRef.current && auctionId) {
         // Page became visible - update data immediately and reset active time
         lastActiveTimeRef.current = new Date();
         fetchAuctionDetails(true);
+        // Re-check if trip exists when page becomes visible
+        supabase
+          .from('trips')
+          .select('id')
+          .eq('auction_id', auctionId)
+          .single()
+          .then(({ data, error }) => {
+            if (data && !error) {
+              setExistingTrip(data);
+            } else {
+              setExistingTrip(null);
+            }
+          })
+          .catch(() => setExistingTrip(null));
       }
     };
 
@@ -464,7 +481,7 @@ export default function AuctionDetailPage() {
       document.removeEventListener('keydown', handleUserActivity);
       document.removeEventListener('scroll', handleUserActivity);
     };
-  }, [fetchAuctionDetails]);
+  }, [fetchAuctionDetails, auctionId]);
 
   const formatVehicleType = (type: string) => {
     const vehicleType = VEHICLE_TYPES.find(v => v.id === type);
@@ -744,6 +761,62 @@ export default function AuctionDetailPage() {
       setError("Failed to delete auction: " + err.message);
       setDeletingAuction(false);
       setShowDeleteAuctionConfirm(false);
+    }
+  };
+
+  const checkExistingTrip = async () => {
+    if (!auctionId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('trips')
+        .select('id')
+        .eq('auction_id', auctionId)
+        .single();
+
+      if (data && !error) {
+        setExistingTrip(data);
+      } else {
+        setExistingTrip(null);
+      }
+    } catch (err) {
+      // No trip exists, which is fine
+      setExistingTrip(null);
+    }
+  };
+
+  const createTrip = async () => {
+    if (!auction || !auction.winner_id) {
+      setError('Cannot create trip: No winner found');
+      return;
+    }
+
+    setCreatingTrip(true);
+    try {
+      const { data, error } = await supabase
+        .from('trips')
+        .insert({
+          auction_id: auction.id,
+          driver_id: auction.winner_id,
+          consigner_id: auction.created_by,
+          status: 'in_progress',
+          started_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setExistingTrip(data);
+      setError(null);
+
+      // Redirect to trip detail page
+      router.push(`/trips/${data.id}`);
+    } catch (err: any) {
+      console.error('Error creating trip:', err);
+      setError('Failed to create trip: ' + err.message);
+    } finally {
+      setCreatingTrip(false);
     }
   };
 
@@ -1616,6 +1689,30 @@ export default function AuctionDetailPage() {
                   {auction.winning_bid && (
                     <div className="text-xl font-bold text-green-700">
                       ₹{parseFloat(auction.winning_bid.amount).toLocaleString()}
+                    </div>
+                  )}
+
+                  {/* Trip Management */}
+                  {auction.status === 'completed' && (
+                    <div className="pt-3 mt-3 border-t border-gray-200">
+                      {existingTrip ? (
+                        <Link
+                          href={`/trips/${existingTrip.id}`}
+                          className="flex items-center justify-center w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                        >
+                          <Package className="w-4 h-4 mr-2" />
+                          View Trip
+                        </Link>
+                      ) : (
+                        <button
+                          onClick={createTrip}
+                          disabled={creatingTrip}
+                          className="flex items-center justify-center w-full px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Package className="w-4 h-4 mr-2" />
+                          {creatingTrip ? 'Creating Trip...' : 'Create Trip'}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

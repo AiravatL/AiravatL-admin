@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   X,
+  Package,
 } from "lucide-react";
 import { signOutAdmin } from "@/lib/auth";
 import { useRouter } from "next/navigation";
@@ -22,6 +23,7 @@ const navigation = [
   { name: "Consigners", href: "/consigners", icon: Users },
   { name: "Drivers", href: "/drivers", icon: Truck },
   { name: "Auctions", href: "/auctions", icon: Gavel },
+  { name: "Trips", href: "/trips", icon: Package },
   { name: "Create Auction", href: "/create-auction", icon: Plus },
 ];
 
