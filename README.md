@@ -23,7 +23,7 @@ An admin dashboard for managing auctions, users, and consigners built with Next.
 ## 📋 Prerequisites
 
 - Node.js 18+
-- npm or yarn
+- npm or yarn or pnpm
 - Supabase account and project
 
 ## ⚙️ Setup & Installation
