@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   // Check if the user is trying to access protected routes
   const protectedPaths = ['/dashboard', '/consigners', '/drivers', '/auctions', '/bids']
   const isProtectedPath = protectedPaths.some(path => 

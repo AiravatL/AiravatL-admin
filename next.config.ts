@@ -10,9 +10,8 @@ const nextConfig: NextConfig = {
   // Remove assetPrefix and basePath for most hosting platforms
   // assetPrefix: process.env.NODE_ENV === 'production' ? '/AiravatL-admin' : '',
   // basePath: process.env.NODE_ENV === 'production' ? '/AiravatL-admin' : '',
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Note: ESLint config moved out of next.config.ts in Next.js 16
+  // Configure ESLint in .eslintrc.json or eslint.config.js instead
   typescript: {
     ignoreBuildErrors: true,
   },
