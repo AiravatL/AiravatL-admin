@@ -208,7 +208,7 @@ export default function AuctionsPage() {
   const fetchAuctionData = useCallback(async (isBackgroundUpdate = false) => {
     try {
       if (isBackgroundUpdate) {
-        setBackgroundUpdateCount(prev => prev + 1);
+        setBackgroundUpdateCount((prev) => prev + 1);
       }
 
       // Fetch auctions with related data - using pre-computed bid statistics for performance
@@ -225,7 +225,7 @@ export default function AuctionsPage() {
           winner:profiles!auctions_winner_id_fkey (
             id, username, first_name, last_name, vehicle_number, phone_number
           )
-        `
+        `,
         )
         .order("created_at", { ascending: false });
 
@@ -233,7 +233,7 @@ export default function AuctionsPage() {
 
       // No need for additional queries - bid stats are already computed in the database
       // This eliminates the N+1 query problem that was causing slow loading
-      const auctionsWithBids = auctionsData.map(auction => ({
+      const auctionsWithBids = auctionsData.map((auction) => ({
         ...auction,
         consigner: auction.profiles,
         winner: auction.winner,
@@ -245,20 +245,20 @@ export default function AuctionsPage() {
       // Calculate statistics
       const totalAuctions = auctionsWithBids.length;
       const activeAuctions = auctionsWithBids.filter(
-        (a) => a.status === "active"
+        (a) => a.status === "active",
       ).length;
       const completedAuctions = auctionsWithBids.filter(
-        (a) => a.status === "completed"
+        (a) => a.status === "completed",
       ).length;
       const cancelledAuctions = auctionsWithBids.filter(
-        (a) => a.status === "cancelled"
+        (a) => a.status === "cancelled",
       ).length;
       const incompleteAuctions = auctionsWithBids.filter(
-        (a) => a.status === "incomplete"
+        (a) => a.status === "incomplete",
       ).length;
       const totalBidsPlaced = auctionsWithBids.reduce(
         (sum, a) => sum + (a.bid_count || 0),
-        0
+        0,
       );
       const avgBidsPerAuction =
         totalAuctions > 0 ? totalBidsPlaced / totalAuctions : 0;
@@ -303,42 +303,47 @@ export default function AuctionsPage() {
 
     // Create a channel for critical real-time updates only
     const channel = supabase
-      .channel('critical_auctions_updates')
+      .channel("critical_auctions_updates")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'auctions',
+          event: "*",
+          schema: "public",
+          table: "auctions",
         },
         (payload) => {
-          console.log('Critical auction change detected:', payload);
+          console.log("Critical auction change detected:", payload);
           // Only refresh for important changes (status updates, winner changes)
-          if (payload.eventType === 'UPDATE' &&
-              (payload.new?.status !== payload.old?.status ||
-               payload.new?.winner_id !== payload.old?.winner_id)) {
+          if (
+            payload.eventType === "UPDATE" &&
+            (payload.new?.status !== payload.old?.status ||
+              payload.new?.winner_id !== payload.old?.winner_id)
+          ) {
             fetchAuctionData(true);
-          } else if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+          } else if (
+            payload.eventType === "INSERT" ||
+            payload.eventType === "DELETE"
+          ) {
             fetchAuctionData(true);
           }
-        }
+        },
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'auction_bids',
+          event: "INSERT",
+          schema: "public",
+          table: "auction_bids",
         },
         (payload) => {
-          console.log('New bid detected:', payload);
+          console.log("New bid detected:", payload);
           // Only refresh for new bids, not all bid changes
           fetchAuctionData(true);
-        }
+        },
       )
       .subscribe((status) => {
-        console.log('Real-time subscription status:', status);
-        setIsRealTimeConnected(status === 'SUBSCRIBED');
+        console.log("Real-time subscription status:", status);
+        setIsRealTimeConnected(status === "SUBSCRIBED");
       });
 
     subscriptionRef.current = channel;
@@ -355,7 +360,8 @@ export default function AuctionsPage() {
       // Dynamic polling interval based on page activity
       const getPollingInterval = () => {
         const now = new Date();
-        const timeSinceLastActive = now.getTime() - lastActiveTimeRef.current.getTime();
+        const timeSinceLastActive =
+          now.getTime() - lastActiveTimeRef.current.getTime();
 
         // If page is not visible, poll less frequently
         if (!isPageVisibleRef.current) {
@@ -405,16 +411,16 @@ export default function AuctionsPage() {
       lastActiveTimeRef.current = new Date();
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('mousedown', handleUserActivity);
-    document.addEventListener('keydown', handleUserActivity);
-    document.addEventListener('scroll', handleUserActivity);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("mousedown", handleUserActivity);
+    document.addEventListener("keydown", handleUserActivity);
+    document.addEventListener("scroll", handleUserActivity);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.removeEventListener('mousedown', handleUserActivity);
-      document.removeEventListener('keydown', handleUserActivity);
-      document.removeEventListener('scroll', handleUserActivity);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("mousedown", handleUserActivity);
+      document.removeEventListener("keydown", handleUserActivity);
+      document.removeEventListener("scroll", handleUserActivity);
     };
   }, [fetchAuctionData]);
 
@@ -434,7 +440,7 @@ export default function AuctionsPage() {
             .includes(searchTerm.toLowerCase()) ||
           auction.winner?.username
             ?.toLowerCase()
-            .includes(searchTerm.toLowerCase())
+            .includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -446,7 +452,7 @@ export default function AuctionsPage() {
     // Vehicle type filter
     if (vehicleFilter !== "all") {
       filtered = filtered.filter(
-        (auction) => auction.vehicle_type === vehicleFilter
+        (auction) => auction.vehicle_type === vehicleFilter,
       );
     }
 
@@ -526,22 +532,24 @@ export default function AuctionsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header with Real-time Status */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Auctions</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-2xl font-semibold text-gray-900">Auctions</h1>
+          <p className="text-sm text-gray-500 mt-1">
             Monitor and manage auction activities
           </p>
         </div>
         <div className="flex items-center space-x-4 text-sm text-gray-500">
           <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${
-              isRealTimeConnected ? 'bg-green-500' : 'bg-yellow-500'
-            }`} />
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isRealTimeConnected ? "bg-green-500" : "bg-yellow-500"
+              }`}
+            />
             <span>
-              {isRealTimeConnected ? 'Real-time Connected' : 'Polling Mode'}
+              {isRealTimeConnected ? "Real-time Connected" : "Polling Mode"}
             </span>
           </div>
           <div className="flex items-center space-x-2">
@@ -557,93 +565,106 @@ export default function AuctionsPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">
-                Total Auctions
-              </p>
-              <p className="text-3xl font-bold text-gray-900">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-5 hover:border-gray-300 transition-all">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="p-1.5 rounded-md bg-blue-50">
+                  <Gavel className="w-4 h-4 text-blue-600" />
+                </div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Total
+                </p>
+              </div>
+              <p className="text-3xl font-semibold text-gray-900">
                 {stats?.totalAuctions || 0}
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-blue-50">
-              <Gavel className="w-6 h-6 text-blue-600" />
-            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">
-                Active Auctions
-              </p>
-              <p className="text-3xl font-bold text-gray-900">
+        <div className="bg-white rounded-lg border border-gray-200 p-5 hover:border-gray-300 transition-all">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="p-1.5 rounded-md bg-green-50">
+                  <TrendingUp className="w-4 h-4 text-green-600" />
+                </div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Active Auctions
+                </p>
+              </div>
+              <p className="text-3xl font-semibold text-gray-900">
                 {stats?.activeAuctions || 0}
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-green-50">
-              <TrendingUp className="w-6 h-6 text-green-600" />
-            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">
-                Completed
-              </p>
-              <p className="text-3xl font-bold text-gray-900">
+        <div className="bg-white rounded-lg border border-gray-200 p-5 hover:border-gray-300 transition-all">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="p-1.5 rounded-md bg-purple-50">
+                  <Package className="w-4 h-4 text-purple-600" />
+                </div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Completed
+                </p>
+              </div>
+              <p className="text-3xl font-semibold text-gray-900">
                 {stats?.completedAuctions || 0}
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-purple-50">
-              <Package className="w-6 h-6 text-purple-600" />
-            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">
-                Incomplete
-              </p>
-              <p className="text-3xl font-bold text-gray-900">
+        <div className="bg-white rounded-lg border border-gray-200 p-5 hover:border-gray-300 transition-all">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="p-1.5 rounded-md bg-yellow-50">
+                  <AlertCircle className="w-4 h-4 text-yellow-600" />
+                </div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Incomplete
+                </p>
+              </div>
+              <p className="text-3xl font-semibold text-gray-900">
                 {stats?.incompleteAuctions || 0}
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-yellow-50">
-              <AlertCircle className="w-6 h-6 text-yellow-600" />
-            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">
-                Total Bids
-              </p>
-              <p className="text-3xl font-bold text-gray-900">
+        <div className="bg-white rounded-lg border border-gray-200 p-5 hover:border-gray-300 transition-all">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="p-1.5 rounded-md bg-orange-50">
+                  <DollarSign className="w-4 h-4 text-orange-600" />
+                </div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Total Bids
+                </p>
+              </div>
+              <p className="text-3xl font-semibold text-gray-900">
                 {stats?.totalBidsPlaced || 0}
               </p>
-            </div>
-            <div className="p-3 rounded-xl bg-orange-50">
-              <DollarSign className="w-6 h-6 text-orange-600" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Vehicle Type Distribution */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Auction Distribution by Vehicle Type
-        </h2>
+      <div className="bg-white rounded-lg border border-gray-200 p-5 hover:border-gray-300 transition-all">
+        <div className="flex items-center space-x-2 mb-4">
+          <div className="w-1 h-5 bg-indigo-500 rounded-full"></div>
+          <h2 className="text-sm font-medium text-gray-900">
+            Auction Distribution by Vehicle Type
+          </h2>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {Object.entries(stats?.vehicleTypeDistribution || {}).map(
             ([type, count]) => (
@@ -659,13 +680,13 @@ export default function AuctionsPage() {
                   {((count / (stats?.totalAuctions || 1)) * 100).toFixed(1)}%
                 </p>
               </div>
-            )
+            ),
           )}
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 lg:p-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-5 hover:border-gray-300 transition-all">
         <div className="flex flex-col space-y-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -789,7 +810,7 @@ export default function AuctionsPage() {
                   </td>
                   <td className="py-3 px-3">
                     <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-medium block truncate">
-                      {formatVehicleType(auction.vehicle_type).split(' ')[0]}
+                      {formatVehicleType(auction.vehicle_type).split(" ")[0]}
                     </span>
                   </td>
                   <td className="py-3 px-3">

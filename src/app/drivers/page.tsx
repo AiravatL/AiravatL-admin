@@ -54,7 +54,7 @@ export default function DriversPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"name" | "created" | "bids" | "wins">(
-    "created"
+    "created",
   );
   const [error, setError] = useState<string | null>(null);
   const subscriptionRef = useRef<any>(null);
@@ -108,21 +108,19 @@ export default function DriversPage() {
             vehicle_number,
             created_at,
             updated_at
-          `
+          `,
           )
           .eq("role", "driver")
           .order("created_at", { ascending: false }),
 
         // Get all bids in one query
-        supabase
-          .from("auction_bids")
-          .select("user_id, amount"),
+        supabase.from("auction_bids").select("user_id, amount"),
 
         // Get all won auctions in one query
         supabase
           .from("auctions")
           .select("winner_id")
-          .not("winner_id", "is", null)
+          .not("winner_id", "is", null),
       ]);
 
       if (driversResult.error) throw driversResult.error;
@@ -138,7 +136,7 @@ export default function DriversPage() {
       const wonAuctionsByDriver = new Map();
 
       // Process bids
-      bidsData.forEach(bid => {
+      bidsData.forEach((bid) => {
         const driverId = bid.user_id;
         if (!bidsByDriver.has(driverId)) {
           bidsByDriver.set(driverId, { count: 0, totalAmount: 0 });
@@ -149,14 +147,20 @@ export default function DriversPage() {
       });
 
       // Process won auctions
-      wonAuctionsData.forEach(auction => {
+      wonAuctionsData.forEach((auction) => {
         const driverId = auction.winner_id;
-        wonAuctionsByDriver.set(driverId, (wonAuctionsByDriver.get(driverId) || 0) + 1);
+        wonAuctionsByDriver.set(
+          driverId,
+          (wonAuctionsByDriver.get(driverId) || 0) + 1,
+        );
       });
 
       // Combine data efficiently
-      const driversWithStats = driversData.map(driver => {
-        const bidStats = bidsByDriver.get(driver.id) || { count: 0, totalAmount: 0 };
+      const driversWithStats = driversData.map((driver) => {
+        const bidStats = bidsByDriver.get(driver.id) || {
+          count: 0,
+          totalAmount: 0,
+        };
         const auctionsWon = wonAuctionsByDriver.get(driver.id) || 0;
 
         return {
@@ -171,21 +175,31 @@ export default function DriversPage() {
 
       // Calculate overall statistics
       const totalDrivers = driversWithStats.length;
-      const activeDrivers = driversWithStats.filter(d => d.bids_count > 0).length;
-      const totalBidsPlaced = driversWithStats.reduce((sum, d) => sum + d.bids_count, 0);
-      const totalAuctionsWon = driversWithStats.reduce((sum, d) => sum + d.auctions_won, 0);
-      const avgBidsPerDriver = totalDrivers > 0 ? totalBidsPlaced / totalDrivers : 0;
+      const activeDrivers = driversWithStats.filter(
+        (d) => d.bids_count > 0,
+      ).length;
+      const totalBidsPlaced = driversWithStats.reduce(
+        (sum, d) => sum + d.bids_count,
+        0,
+      );
+      const totalAuctionsWon = driversWithStats.reduce(
+        (sum, d) => sum + d.auctions_won,
+        0,
+      );
+      const avgBidsPerDriver =
+        totalDrivers > 0 ? totalBidsPlaced / totalDrivers : 0;
 
       // Vehicle type distribution (handle null values)
       const vehicleTypeDistribution: { [key: string]: number } = {};
-      driversWithStats.forEach(driver => {
+      driversWithStats.forEach((driver) => {
         const vehicleType = driver.vehicle_type || "not_specified";
-        vehicleTypeDistribution[vehicleType] = (vehicleTypeDistribution[vehicleType] || 0) + 1;
+        vehicleTypeDistribution[vehicleType] =
+          (vehicleTypeDistribution[vehicleType] || 0) + 1;
       });
 
       // Top drivers (those who actually won auctions)
       const topDrivers = driversWithStats
-        .filter(d => d.auctions_won > 0)
+        .filter((d) => d.auctions_won > 0)
         .sort((a, b) => b.auctions_won - a.auctions_won)
         .slice(0, 5);
 
@@ -210,46 +224,46 @@ export default function DriversPage() {
     console.log("Setting up real-time subscriptions for drivers");
 
     const channel = supabase
-      .channel('drivers_updates')
+      .channel("drivers_updates")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'profiles',
-          filter: 'role=eq.driver',
+          event: "*",
+          schema: "public",
+          table: "profiles",
+          filter: "role=eq.driver",
         },
         (payload) => {
-          console.log('Driver change detected:', payload);
+          console.log("Driver change detected:", payload);
           fetchDriverData();
-        }
+        },
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'auction_bids',
+          event: "*",
+          schema: "public",
+          table: "auction_bids",
         },
         (payload) => {
-          console.log('Bid change detected:', payload);
+          console.log("Bid change detected:", payload);
           fetchDriverData();
-        }
+        },
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'auctions',
+          event: "*",
+          schema: "public",
+          table: "auctions",
         },
         (payload) => {
-          console.log('Auction change detected:', payload);
+          console.log("Auction change detected:", payload);
           fetchDriverData();
-        }
+        },
       )
       .subscribe((status) => {
-        console.log('Drivers subscription status:', status);
+        console.log("Drivers subscription status:", status);
       });
 
     subscriptionRef.current = channel;
@@ -268,14 +282,14 @@ export default function DriversPage() {
           driver.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           driver.vehicle_number
             ?.toLowerCase()
-            .includes(searchTerm.toLowerCase())
+            .includes(searchTerm.toLowerCase()),
       );
     }
 
     // Vehicle type filter
     if (vehicleFilter !== "all") {
       filtered = filtered.filter(
-        (driver) => driver.vehicle_type === vehicleFilter
+        (driver) => driver.vehicle_type === vehicleFilter,
       );
     }
 
@@ -284,7 +298,7 @@ export default function DriversPage() {
       switch (sortBy) {
         case "name":
           return (a.first_name || a.username || "").localeCompare(
-            b.first_name || b.username || ""
+            b.first_name || b.username || "",
           );
         case "bids":
           return (b.bids_count || 0) - (a.bids_count || 0);
@@ -437,7 +451,7 @@ export default function DriversPage() {
                     </span>
                   </div>
                 </div>
-              )
+              ),
             )}
           </div>
         </div>
@@ -526,126 +540,132 @@ export default function DriversPage() {
           </div>
         </div>
 
-        {/* Drivers Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                  Driver
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                  Vehicle
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                  Contact
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                  Performance
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                  Win Rate
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                  Joined
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDrivers.map((driver) => (
-                <tr
-                  key={driver.id}
-                  className="border-b border-gray-100 hover:bg-gray-50"
-                >
-                  <td className="py-4 px-4">
-                    <div>
-                      <p className="font-medium text-gray-900">
+        {/* Drivers List - Card Layout for Better UX */}
+        <div className="space-y-4">
+          {filteredDrivers.map((driver) => (
+            <div
+              key={driver.id}
+              className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                {/* Driver Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 text-lg">
                         {driver.first_name || driver.last_name
                           ? `${driver.first_name || ""} ${
                               driver.last_name || ""
                             }`.trim()
                           : driver.username}
-                      </p>
+                      </h3>
                       <p className="text-sm text-gray-500">
                         @{driver.username}
                       </p>
                     </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {driver.vehicle_number || "N/A"}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {driver.vehicle_type
-                          ? formatVehicleType(driver.vehicle_type)
-                          : "Not specified"}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="space-y-1">
-                      {driver.phone_number && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Phone className="w-4 h-4 mr-1" />
-                          {driver.phone_number}
-                        </div>
-                      )}
-                      {driver.email && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Mail className="w-4 h-4 mr-1" />
-                          {driver.email}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="text-center">
-                      <p className="font-semibold text-gray-900">
-                        {driver.bids_count || 0} bids
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {driver.auctions_won || 0} wins
-                      </p>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="text-center">
-                      <p className="font-semibold text-gray-900">
-                        {(driver.bids_count || 0) > 0
-                          ? Math.round(
-                              ((driver.auctions_won || 0) /
-                                (driver.bids_count || 1)) *
-                                100
-                            )
-                          : 0}
-                        %
-                      </p>
-                      <p className="text-sm text-gray-500">success rate</p>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      {new Date(driver.created_at).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
                     <Link
                       href={`/drivers/${driver.id}`}
-                      className="inline-flex items-center px-3 py-1 text-sm bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"
+                      className="inline-flex items-center px-3 py-1.5 text-sm bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors ml-2 flex-shrink-0"
                     >
                       <Eye className="w-4 h-4 mr-1" />
-                      View Details
+                      Details
                     </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+                    {/* Vehicle */}
+                    <div className="flex items-start space-x-2">
+                      <Car className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-500">Vehicle</p>
+                        <p className="font-medium text-gray-900 text-sm truncate">
+                          {driver.vehicle_number || "N/A"}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {driver.vehicle_type
+                            ? formatVehicleType(driver.vehicle_type)
+                            : "Not specified"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Address */}
+                    <div className="flex items-start space-x-2">
+                      <MapPin className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-500">Address</p>
+                        <p className="text-sm text-gray-900 line-clamp-2">
+                          {driver.address || "Not provided"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Contact */}
+                    <div className="flex items-start space-x-2">
+                      <Phone className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-500">Contact</p>
+                        {driver.phone_number && (
+                          <p className="text-sm text-gray-900 truncate">
+                            {driver.phone_number}
+                          </p>
+                        )}
+                        {driver.email && (
+                          <p className="text-xs text-gray-600 truncate">
+                            {driver.email}
+                          </p>
+                        )}
+                        {!driver.phone_number && !driver.email && (
+                          <p className="text-sm text-gray-400">Not provided</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="flex items-start space-x-2">
+                      <Activity className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-gray-500">Performance</p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <div className="text-center">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {driver.bids_count || 0}
+                            </p>
+                            <p className="text-xs text-gray-500">bids</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {driver.auctions_won || 0}
+                            </p>
+                            <p className="text-xs text-gray-500">wins</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-semibold text-indigo-600">
+                              {(driver.bids_count || 0) > 0
+                                ? Math.round(
+                                    ((driver.auctions_won || 0) /
+                                      (driver.bids_count || 1)) *
+                                      100,
+                                  )
+                                : 0}
+                              %
+                            </p>
+                            <p className="text-xs text-gray-500">rate</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Joined Date */}
+                  <div className="flex items-center text-xs text-gray-500 mt-3 pt-3 border-t border-gray-100">
+                    <Calendar className="w-3 h-3 mr-1" />
+                    Joined {new Date(driver.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
 
           {filteredDrivers.length === 0 && (
             <div className="text-center py-12">

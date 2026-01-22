@@ -1,58 +1,58 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { Plus, User, Truck } from 'lucide-react'
+import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { Plus, User, Truck } from "lucide-react";
 
 interface CreateUserForm {
-  email: string
-  password: string
-  role: 'consigner' | 'driver'
-  first_name: string
-  last_name: string
-  phone_number: string
-  vehicle_type: string
-  vehicle_number: string
+  email: string;
+  password: string;
+  role: "consigner" | "driver";
+  first_name: string;
+  last_name: string;
+  phone_number: string;
+  vehicle_type: string;
+  vehicle_number: string;
 }
 
 export default function UsersPage() {
-  const [showForm, setShowForm] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<CreateUserForm>({
-    email: '',
-    password: '',
-    role: 'consigner',
-    first_name: '',
-    last_name: '',
-    phone_number: '',
-    vehicle_type: '',
-    vehicle_number: ''
-  })
+    email: "",
+    password: "",
+    role: "consigner",
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    vehicle_type: "",
+    vehicle_number: "",
+  });
 
   const vehicleTypes = [
-    'three_wheeler',
-    'pickup_truck', 
-    'mini_truck',
-    'medium_truck',
-    'large_truck'
-  ]
+    "three_wheeler",
+    "pickup_truck",
+    "mini_truck",
+    "medium_truck",
+    "large_truck",
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
       // Create user metadata based on role
       const userMetadata: any = {
         role: form.role,
         first_name: form.first_name,
-        last_name: form.last_name
-      }
+        last_name: form.last_name,
+      };
 
-      if (form.role === 'driver') {
-        userMetadata.phone_number = form.phone_number
-        userMetadata.vehicle_type = form.vehicle_type
-        userMetadata.vehicle_number = form.vehicle_number
+      if (form.role === "driver") {
+        userMetadata.phone_number = form.phone_number;
+        userMetadata.vehicle_type = form.vehicle_type;
+        userMetadata.vehicle_number = form.vehicle_number;
       }
 
       // Create user using Supabase admin function
@@ -60,43 +60,47 @@ export default function UsersPage() {
         email: form.email,
         password: form.password,
         email_confirm: true,
-        user_metadata: userMetadata
-      })
+        user_metadata: userMetadata,
+      });
 
       if (error) {
-        throw error
+        throw error;
       }
 
-      alert(`${form.role} user created successfully!`)
+      alert(`${form.role} user created successfully!`);
       setForm({
-        email: '',
-        password: '',
-        role: 'consigner',
-        first_name: '',
-        last_name: '',
-        phone_number: '',
-        vehicle_type: '',
-        vehicle_number: ''
-      })
-      setShowForm(false)
+        email: "",
+        password: "",
+        role: "consigner",
+        first_name: "",
+        last_name: "",
+        phone_number: "",
+        vehicle_type: "",
+        vehicle_number: "",
+      });
+      setShowForm(false);
     } catch (error: any) {
-      console.error('Error creating user:', error)
-      alert('Error: ' + error.message)
+      console.error("Error creating user:", error);
+      alert("Error: " + error.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600 mt-2">Create and manage consigners and drivers</p>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            User Management
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Create and manage consigners and drivers
+          </p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-indigo-700"
+          className="bg-gray-900 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-800 transition-colors"
         >
           <Plus className="w-4 h-4" />
           Add User
@@ -115,7 +119,7 @@ export default function UsersPage() {
                 <input
                   type="email"
                   value={form.email}
-                  onChange={(e) => setForm({...form, email: e.target.value})}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="form-input"
                   required
                 />
@@ -127,7 +131,9 @@ export default function UsersPage() {
                 <input
                   type="password"
                   value={form.password}
-                  onChange={(e) => setForm({...form, password: e.target.value})}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
                   className="form-input"
                   required
                 />
@@ -143,8 +149,13 @@ export default function UsersPage() {
                   <input
                     type="radio"
                     value="consigner"
-                    checked={form.role === 'consigner'}
-                    onChange={(e) => setForm({...form, role: e.target.value as 'consigner' | 'driver'})}
+                    checked={form.role === "consigner"}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        role: e.target.value as "consigner" | "driver",
+                      })
+                    }
                     className="mr-2"
                   />
                   <User className="w-4 h-4 mr-1" />
@@ -154,8 +165,13 @@ export default function UsersPage() {
                   <input
                     type="radio"
                     value="driver"
-                    checked={form.role === 'driver'}
-                    onChange={(e) => setForm({...form, role: e.target.value as 'consigner' | 'driver'})}
+                    checked={form.role === "driver"}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        role: e.target.value as "consigner" | "driver",
+                      })
+                    }
                     className="mr-2"
                   />
                   <Truck className="w-4 h-4 mr-1" />
@@ -172,7 +188,9 @@ export default function UsersPage() {
                 <input
                   type="text"
                   value={form.first_name}
-                  onChange={(e) => setForm({...form, first_name: e.target.value})}
+                  onChange={(e) =>
+                    setForm({ ...form, first_name: e.target.value })
+                  }
                   className="form-input"
                   required
                 />
@@ -184,14 +202,16 @@ export default function UsersPage() {
                 <input
                   type="text"
                   value={form.last_name}
-                  onChange={(e) => setForm({...form, last_name: e.target.value})}
+                  onChange={(e) =>
+                    setForm({ ...form, last_name: e.target.value })
+                  }
                   className="form-input"
                   required
                 />
               </div>
             </div>
 
-            {form.role === 'driver' && (
+            {form.role === "driver" && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -200,7 +220,9 @@ export default function UsersPage() {
                   <input
                     type="tel"
                     value={form.phone_number}
-                    onChange={(e) => setForm({...form, phone_number: e.target.value})}
+                    onChange={(e) =>
+                      setForm({ ...form, phone_number: e.target.value })
+                    }
                     className="form-input"
                     pattern="[0-9]{10}"
                     required
@@ -213,14 +235,18 @@ export default function UsersPage() {
                     </label>
                     <select
                       value={form.vehicle_type}
-                      onChange={(e) => setForm({...form, vehicle_type: e.target.value})}
+                      onChange={(e) =>
+                        setForm({ ...form, vehicle_type: e.target.value })
+                      }
                       className="form-select"
                       required
                     >
                       <option value="">Select vehicle type</option>
-                      {vehicleTypes.map(type => (
+                      {vehicleTypes.map((type) => (
                         <option key={type} value={type}>
-                          {type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          {type
+                            .replace("_", " ")
+                            .replace(/\b\w/g, (l) => l.toUpperCase())}
                         </option>
                       ))}
                     </select>
@@ -232,7 +258,9 @@ export default function UsersPage() {
                     <input
                       type="text"
                       value={form.vehicle_number}
-                      onChange={(e) => setForm({...form, vehicle_number: e.target.value})}
+                      onChange={(e) =>
+                        setForm({ ...form, vehicle_number: e.target.value })
+                      }
                       className="form-input"
                       placeholder="KA01AB1234"
                       minLength={6}
@@ -249,7 +277,7 @@ export default function UsersPage() {
                 disabled={loading}
                 className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
               >
-                {loading ? 'Creating...' : 'Create User'}
+                {loading ? "Creating..." : "Create User"}
               </button>
               <button
                 type="button"
@@ -263,5 +291,5 @@ export default function UsersPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

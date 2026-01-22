@@ -49,7 +49,7 @@ export default function ConsignersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "created" | "auctions">(
-    "created"
+    "created",
   );
   const [error, setError] = useState<string | null>(null);
   const subscriptionRef = useRef<any>(null);
@@ -93,7 +93,7 @@ export default function ConsignersPage() {
             address,
             created_at,
             updated_at
-          `
+          `,
           )
           .eq("role", "consigner")
           .order("created_at", { ascending: false }),
@@ -152,7 +152,7 @@ export default function ConsignersPage() {
             if (consignerId) {
               bidsByConsigner.set(
                 consignerId,
-                (bidsByConsigner.get(consignerId) || 0) + 1
+                (bidsByConsigner.get(consignerId) || 0) + 1,
               );
             }
           });
@@ -176,7 +176,7 @@ export default function ConsignersPage() {
       });
 
       console.log(
-        `Loaded ${consignersWithStats.length} consigners with optimized queries`
+        `Loaded ${consignersWithStats.length} consigners with optimized queries`,
       );
 
       setConsigners(consignersWithStats);
@@ -184,15 +184,15 @@ export default function ConsignersPage() {
       // Calculate overall statistics
       const totalConsigners = consignersWithStats.length;
       const activeConsigners = consignersWithStats.filter(
-        (c) => c.auction_count > 0
+        (c) => c.auction_count > 0,
       ).length;
       const totalAuctionsCreated = consignersWithStats.reduce(
         (sum, c) => sum + c.auction_count,
-        0
+        0,
       );
       const completedAuctions = consignersWithStats.reduce(
         (sum, c) => sum + c.completed_auction_count,
-        0
+        0,
       );
       const avgAuctionsPerConsigner =
         totalConsigners > 0 ? totalAuctionsCreated / totalConsigners : 0;
@@ -234,7 +234,7 @@ export default function ConsignersPage() {
         (payload) => {
           console.log("Consigner change detected:", payload);
           fetchConsignerData();
-        }
+        },
       )
       .on(
         "postgres_changes",
@@ -246,7 +246,7 @@ export default function ConsignersPage() {
         (payload) => {
           console.log("Auction change detected:", payload);
           fetchConsignerData();
-        }
+        },
       )
       .subscribe((status) => {
         console.log("Consigners subscription status:", status);
@@ -271,7 +271,7 @@ export default function ConsignersPage() {
           consigner.last_name
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          consigner.email?.toLowerCase().includes(searchTerm.toLowerCase())
+          consigner.email?.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -280,7 +280,7 @@ export default function ConsignersPage() {
       switch (sortBy) {
         case "name":
           return (a.first_name || a.username || "").localeCompare(
-            b.first_name || b.username || ""
+            b.first_name || b.username || "",
           );
         case "auctions":
           return (b.auction_count || 0) - (a.auction_count || 0);
@@ -395,10 +395,13 @@ export default function ConsignersPage() {
 
       {/* Top Consigners */}
       {stats?.topConsigners && stats.topConsigners.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Top Consigners
-          </h2>
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="w-1 h-5 bg-purple-500 rounded-full"></div>
+            <h2 className="text-sm font-medium text-gray-900">
+              Top Performing Consigners
+            </h2>
+          </div>
           <div className="space-y-3">
             {stats.topConsigners.map((consigner, index) => (
               <div
@@ -435,7 +438,7 @@ export default function ConsignersPage() {
       )}
 
       {/* Search and Filter */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-5">
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -543,7 +546,7 @@ export default function ConsignersPage() {
                           ? Math.round(
                               ((consigner.completed_auction_count || 0) /
                                 (consigner.auction_count || 1)) *
-                                100
+                                100,
                             )
                           : 0}
                         %
